@@ -1,466 +1,536 @@
 # 컴포넌트
 
-디자인 토큰 기반으로 조합된 재사용 단위. 모든 스크린은 이 컴포넌트의 배치로 구성된다.
+GTK4 위젯 기반 재사용 단위. 모든 스크린은 이 컴포넌트의 배치로 구성된다.
+디자인 토큰은 `design_tokens.md` 참고.
 
 ---
 
-## 1. Avatar (이니셜 원형)
+## 1. Avatar (이니셜 레이블)
 
-```
-╭──╮
-│김│   ← 배경 = 해시 기반 팔레트, 전경 = fg.on-accent
-╰──╯
+GTK4에서는 별도 그리기 없이 CSS로 원형 아바타를 구현한다.
+
+```c
+GtkWidget *avatar = gtk_label_new("김");
+gtk_style_context_add_class(gtk_widget_get_style_context(avatar), "avatar-label");
+/* CSS에서 border-radius: 50%, min-width/min-height: 36px 로 원형 처리 */
 ```
 
-- 크기: `2×3` (width×height) 기본. 압축형 `1×1` (`◉김` 형태)로 축소 가능.
-- 닉네임 첫 글자 (한글/영문/숫자) 1자. 이모지 이니셜은 `?` 로 치환.
-- 오프라인이면 채도 절반 톤(`fg.tertiary` 로 덮기) + 오른쪽 아래 점 `○`.
-- 색 결정 알고리즘: `design_tokens.md §6` FNV1a 해시.
+CSS:
+```css
+.avatar-label {
+  min-width: 36px;
+  min-height: 36px;
+  border-radius: 50%;
+  font-weight: bold;
+  color: @avatar_fg;
+  background-color: @avatar_bg;  /* 닉네임 해시 기반으로 C 코드에서 동적 설정 */
+}
+.avatar-label.offline {
+  opacity: 0.5;
+}
+```
+
+- 닉네임 첫 글자(한글/영문/숫자) 1자. 이모지 이니셜은 `?`로 치환.
+- 색 결정: `design_tokens.md §6` FNV1a 해시 → CSS provider로 동적 적용 (`gtk_widget_add_css_class()`). `gtk_widget_override_background_color()`는 GTK4에서 제거됨.
+- 크기 변형: `avatar-label.small` (24px), `avatar-label.large` (56px).
 
 ---
 
-## 2. StatusDot
+## 2. StatusDot (상태 표시)
 
-상태 전달 전용 심볼. 아바타 오른쪽 또는 닉네임 앞에 붙음.
+```c
+GtkWidget *dot = gtk_label_new("●");
+gtk_style_context_add_class(ctx, "status-dot");
+gtk_style_context_add_class(ctx, "status-online");  /* online / busy / dnd / offline */
+```
 
-- `● online`    — `status.online`
-- `● busy`      — `status.busy`
-- `● dnd`       — `status.dnd`
-- `○ offline`   — `status.offline`
+CSS:
+```css
+.status-dot.status-online  { color: @status_online; }
+.status-dot.status-busy    { color: @status_busy; }
+.status-dot.status-dnd     { color: @status_dnd; }
+.status-dot.status-offline { color: @status_offline; }
+```
+
+- 아바타 오른쪽 또는 닉네임 앞에 배치.
+- 상태 변경 시 CSS class를 교체하여 색상 업데이트.
 
 ---
 
-## 3. Badge (뱃지)
+## 3. UnreadBadge (미읽음 뱃지)
 
-### 카운트 뱃지 — 읽지 않은 수
-- 1~5: `❶❷❸❹❺` (accent 색)
-- 6~99: `(6)` (accent 배경 + 흰 글자, pill shape 모사: 2글자 + 앞뒤 공백 inverse)
-- 100+: `99+`
+```c
+GtkWidget *badge = gtk_label_new("3");
+gtk_style_context_add_class(ctx, "unread-badge");
+/* 값이 0이면 gtk_widget_hide(badge) */
+```
 
-### 상태 칩 — 상태 라벨
+CSS:
+```css
+.unread-badge {
+  background-color: @accent_primary;
+  color: @fg_on_accent;
+  border-radius: 10px;
+  min-width: 20px;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: bold;
+}
 ```
- ● ONLINE   ● BUSY   ● DND   ○ OFFLINE
-```
-대문자 라벨 + 앞에 StatusDot. 테두리 없음, 색만.
+
+- 1~99: 숫자 표시.
+- 100+: `"99+"` 클램프.
+- 0: `gtk_widget_hide()`.
 
 ---
 
-## 4. Chip / Tag
+## 4. MessageBubble (메시지 말풍선)
 
-배경이 살짝 들어간 pill:
+메시지 하나를 표현하는 복합 위젯. `GtkListBox` 내 `GtkListBoxRow`에 삽입.
+
+### 상대방 메시지 (좌측 정렬)
+
+```c
+/* 최상위: GtkBox horizontal, halign=START */
+GtkWidget *row_box   = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+GtkWidget *avatar    = make_avatar_label(sender_nick);
+GtkWidget *content   = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
+GtkWidget *nick_lbl  = gtk_label_new(sender_nick);   /* 그룹핑 첫 메시지만 */
+GtkWidget *bubble    = gtk_label_new(message_text);
+GtkWidget *meta_box  = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+GtkWidget *unread    = gtk_label_new("3");            /* unread count */
+GtkWidget *timestamp = gtk_label_new("14:02");
+
+gtk_style_context_add_class(gtk_widget_get_style_context(bubble), "bubble-other");
+gtk_label_set_line_wrap(GTK_LABEL(bubble), TRUE);
+gtk_label_set_xalign(GTK_LABEL(nick_lbl), 0.0);
 ```
- 개발  스터디  #room42  @이영희
+
+### 내 메시지 (우측 정렬)
+
+```c
+GtkWidget *row_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+gtk_widget_set_halign(row_box, GTK_ALIGN_END);
+/* meta_box (unread + timestamp)를 bubble 왼쪽에 배치 */
+GtkWidget *bubble = gtk_label_new(message_text);
+gtk_style_context_add_class(gtk_widget_get_style_context(bubble), "bubble-self");
 ```
-- 형식: `<space><text><space>` 에 `bg.surface` 적용 (inverse video fallback).
-- 종류: neutral(주제/태그), mention(`@` 포함 accent), room-ref(`#` 포함 fg.secondary).
+
+CSS:
+```css
+.bubble-other {
+  background-color: @bg_surface;
+  color: @fg_primary;
+  border-radius: 0 12px 12px 12px;
+  padding: 8px 12px;
+  max-width: 480px;
+}
+.bubble-self {
+  background-color: @accent_primary;
+  color: @fg_on_accent;
+  border-radius: 12px 12px 0 12px;
+  padding: 8px 12px;
+  max-width: 480px;
+}
+```
+
+### 그룹핑 규칙
+
+- 같은 발신자의 연속 메시지가 **180초 이내**: 두 번째부터 avatar + nick GtkLabel을 `gtk_widget_hide()`로 숨김.
+- 시간·미읽음 수 GtkLabel은 **그룹 마지막 메시지에만** 표시.
 
 ---
 
-## 5. Card (리스트 아이템)
+## 5. FriendItem (친구 목록 항목)
 
-친구·방·DM 목록의 각 항목.
+`GtkListBox`의 `GtkListBoxRow` 내부 구조:
 
-```
- ╭──╮                                                         
- │김│  김철수                       · 방금                   
- ╰──╯  점심 뭐 먹지                                    ❶     
- ● online                                                     
-```
+```c
+GtkWidget *row_box  = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+GtkWidget *avatar   = make_avatar_label(nick);
+GtkWidget *info_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
+GtkWidget *name_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
+GtkWidget *dot      = make_status_dot(status);
+GtkWidget *nick_lbl = gtk_label_new(nickname);
+GtkWidget *status_m = gtk_label_new(status_msg);    /* dim-label */
+GtkWidget *meta_lbl = gtk_label_new(last_seen);     /* 우측 끝, meta-label */
 
-- 높이: 3행 (avatar 높이와 맞춤).
-- 구성(좌→우): 아바타 · (닉 + 상태dot + 메타) · (프리뷰 한 줄) · (우측 끝 시간 + 뱃지).
-- 선택 시 `▌` 왼쪽에 추가 + `bg.elevated`.
-- 항목 사이는 **1행 여백**. 선 없음.
-
-### Card — Hover 퀵액션
-
-키보드 포커스(hover) 시 우측에 퀵액션 칩 표시:
-
-```
- ╭──╮                                                         
- │김│  김철수                       · 방금   [DM] [프로필]  
- ╰──╯  점심 뭐 먹지                                    ❶     
- ● online
+gtk_widget_set_hexpand(info_box, TRUE);
+gtk_label_set_xalign(GTK_LABEL(status_m), 0.0);
+gtk_label_set_ellipsize(GTK_LABEL(status_m), PANGO_ELLIPSIZE_END);
 ```
 
-- 친구 카드: `[DM]` `[프로필]`
-- 방 카드: `[입장]` `[나가기]`
-- 퀵액션은 공간이 충분할 때만 표시 (터미널 너비 ≥ 90).
+- 우클릭 → `GtkPopoverMenu`: `[DM 보내기]` `[프로필 보기]` `[친구 삭제]`.
+- 친구 요청 행: 우측에 `[수락]` `[거절]` GtkButton 추가.
+- 오프라인 항목: status_msg 자리에 `"마지막 접속: 2시간 전"` 표시.
 
 ---
 
-## 6. Tabs (사이드바 탭)
+## 6. RoomItem (채팅 목록 항목)
 
-```
-  ▸ 친구         12
-  ▾ 채팅          5 ❶
-      ╭──╮
-      │박│ 박민준     · 3분
-      ╰──╯ 안녕하세요    ❶
-  ▸ 오픈채팅    24
-  ▸ 마이페이지
+```c
+GtkWidget *row_box    = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+GtkWidget *icon_lbl   = make_room_icon(room_type, room_name); /* # 또는 ✉ */
+GtkWidget *info_box   = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
+GtkWidget *top_row    = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+GtkWidget *name_lbl   = gtk_label_new(room_name);
+GtkWidget *time_lbl   = gtk_label_new(last_msg_time);   /* meta-label, 우측 정렬 */
+GtkWidget *preview    = gtk_label_new(last_msg_preview);/* dim-label */
+GtkWidget *badge      = make_unread_badge(unread_count);/* unread-badge, 우측 */
+
+gtk_widget_set_hexpand(name_lbl, TRUE);
+gtk_label_set_ellipsize(GTK_LABEL(preview), PANGO_ELLIPSIZE_END);
 ```
 
-- 닫힘 `▸`, 열림 `▾`. 그룹명은 `h2` 타이포 (bold).
-- 활성 그룹 좌측에 `▌` 액센트.
+- 방 타입에 따른 아이콘: 그룹 `#`, DM `✉`, 오픈 `#` + `[오픈]` 칩.
+- 미읽음 = 0이면 `gtk_widget_hide(badge)`.
 
 ---
 
-## 7. TopBar (화면 헤더)
+## 7. NotificationBar (알림 바)
 
-```
-╭──────────────────────────────────────────────────╮
-│ ← #컴공 스터디  12/30   ◈ 오늘 자정까지 제출  ⋯ │
-╰──────────────────────────────────────────────────╯
+`GtkRevealer + GtkBox`를 사용한 알림 컴포넌트 (GTK4에서 GtkInfoBar 제거됨).
+
+```c
+GtkWidget *revealer = gtk_revealer_new();
+gtk_revealer_set_transition_type(GTK_REVEALER(revealer),
+    GTK_REVEALER_TRANSITION_TYPE_SLIDE_DOWN);
+
+GtkWidget *bar_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+gtk_widget_add_css_class(bar_box, "notification-bar");
+gtk_widget_add_css_class(bar_box, "notification-info");  /* info/error/other */
+
+GtkWidget *msg_lbl     = gtk_label_new(message_text);
+GtkWidget *accept_btn  = gtk_button_new_with_label("수락");
+GtkWidget *reject_btn  = gtk_button_new_with_label("거절");
+
+gtk_box_append(GTK_BOX(bar_box), msg_lbl);
+gtk_box_append(GTK_BOX(bar_box), accept_btn);
+gtk_box_append(GTK_BOX(bar_box), reject_btn);
+gtk_revealer_set_child(GTK_REVEALER(revealer), bar_box);
+
+/* 표시 */
+gtk_revealer_set_reveal_child(GTK_REVEALER(revealer), TRUE);
+
+/* 자동 해제 (5초) */
+g_timeout_add(5000, (GSourceFunc)hide_notification_cb, revealer);
 ```
 
-- 높이: 1행 (테두리 포함 3행).
-- 좌측: 뒤로가기 `←` + 제목 + 메타 (멤버수·상태).
-- 중앙: 핀 요약 (넘치면 `…`). 핀 없으면 공백.
-- 우측: 액션 `⋯` (추가 메뉴 펼치기).
+| 알림 유형 | CSS class | 자동 해제 |
+|-----------|-----------|----------|
+| 친구 요청 | `notification-info` | 10초 |
+| 멘션 알림 | `notification-other` | 5초 |
+| 일반 정보 | `notification-info` | 5초 |
+| 연결 끊김 | `notification-error` | 수동만 가능 |
 
-### ⋯ 메뉴 (채팅 화면)
-
-```
-╭──────────────────────╮
-│  멤버 목록           │
-│  방 검색             │
-│  공지 설정           │  ← 방장/관리자 전용
-│  핀 메시지 설정      │  ← 방장/관리자 전용
-│  오픈채팅 닉네임     │  ← 오픈채팅 전용
-│  알림 무음           │
-│  채팅방 나가기       │
-╰──────────────────────╯
-```
+- 최대 3개 스택: `GtkBox (vertical)` 안에 여러 GtkRevealer 추가.
 
 ---
 
-## 8. Banner (알림)
+## 8. TypingIndicator (타이핑 표시)
 
-화면 최상단 1행에 오버레이. 중요도 색상:
+```c
+GtkWidget *typing_lbl = gtk_label_new("");
+gtk_style_context_add_class(ctx, "typing-indicator");
+gtk_widget_hide(typing_lbl);  /* 초기 숨김 */
 
-```
- ⦿  홍길동 님이 친구 요청을 보냈습니다   [수락] [거절]   ×
-```
+/* TYPING_NOTIFY 수신 시 */
+gtk_label_set_text(GTK_LABEL(typing_lbl), "홍길동 님이 입력 중...");
+gtk_widget_show(typing_lbl);
 
-- 레벨 0/info: `accent.primary`
-- 레벨 1/warn: `feedback.warn`
-- 레벨 2/urgent: `feedback.error`
-- 최대 3개 스택. 5초 후 자동 해제(urgent 제외).
-- 액션 버튼: `[수락]` 은 Chip 과 동일 스타일, 키보드 숫자 `1/2/3` 바인딩.
-- 연결 끊김 배너: z-layer 4(최상위), 해제 불가.
-
----
-
-## 9. Composer (입력창)
-
-```
-╭──────────────────────────────────────────────────╮
-│ ▌ 메시지 입력                      /help   ⏎ 전송│
-╰──────────────────────────────────────────────────╯
+/* TYPING_STOP 또는 5초 타임아웃 */
+gtk_widget_hide(typing_lbl);
 ```
 
-- `▌` accent 색 prompt.
-- 입력 중 왼쪽 영역 확장, 우측 힌트(`⏎ 전송`)는 공간 부족 시 생략.
-- 슬래시 커맨드 모드(`/` 로 시작): prompt 를 `⌘` 로 교체 + accent 강조.
-- placeholder 는 `fg.tertiary`.
-- disabled 상태 (연결 끊김): `fg.tertiary` + dim, 전송 시 오류 표시.
+- 복수 타이핑: `"홍길동 외 2명이 입력 중..."`.
+- 입력창 바로 위에 배치.
 
-### 답장 모드
-
-```
-╭──────────────────────────────────────────────────╮
-│ ┊ 홍길동: 과제 다들 했어?              [취소]    │
-│ ▌ 메시지 입력                      /help ⏎ 전송  │
-╰──────────────────────────────────────────────────╯
-```
-
-Composer 높이가 2행으로 확장. `[취소]` 또는 `Esc` = 답장 모드 해제.
-
----
-
-## 10. TypingIndicator
-
-```
- 홍길동 입력중 · · ·
-```
-- Composer 바로 위 1행, `fg.secondary`.
-- 여러 명일 때: `홍길동 외 2명 입력중 · · ·`.
-- 점 애니메이션: 200ms 틱마다 `·   ` → `· · ` → `· · ·` 순환.
-- TYPING_STOP 수신 또는 5초 무음 시 자동 소멸.
-
----
-
-## 11. MessageRow (채팅)
-
-KakaoTalk 스타일: 내 메시지 **우측 정렬**, 상대방 **좌측 + 아바타**.
-시간·미읽음 수는 본문 하단 **바깥쪽**에 세로 스택(`N` 위 / `HH:MM` 아래).
-
-**상대방** — 본문 마지막 줄의 **우측 바깥**:
-```
- ╭──╮
- │홍│ 홍길동
- ╰──╯ 과제 다들 했어?                             2
-                                                14:02
-      👍 2   ❤ 1
-```
-
-**나** — 본문 마지막 줄의 **좌측 바깥**:
-```
-                               1   ㄴㄴ 지금 시작...
-                             14:03
-```
-
-**읽음 카운터 (`N`)**:
-- `unread = member_count − read_count − 1` (발신자 제외). DM 은 0 또는 1.
-- `accent.primary` + bold. `99+` 클램프. `0` 은 공백(시간만 표시).
-- 시간과 같은 컬럼, 한 줄 위.
-
-**그룹핑 규칙**:
-- 같은 발신자가 **180초 내 연속**: 두 번째부터 아바타·닉 생략, 본문만 같은 들여쓰기로 이어 붙임.
-- 시간·숫자 스택은 **그룹 마지막 메시지에만** 표시.
-- 다른 발신자가 끼면 그룹 종료.
-
-**시스템 메시지** (`msg_type=1`):
-```
-             ─── 이영희 님이 입장했습니다 · 14:03 ───
-```
-`fg.tertiary` + 가운데 정렬 + 양쪽 짧은 dash.
-
-**날짜 구분**:
-```
-            ────────  2026. 4. 20 (월)  ────────
-```
-
----
-
-## 12. 메시지 장식 변형
-
-| 상황 | 표현 |
-|------|------|
-| `msg_type=2` whisper | 본문 앞 `✉ 귓속말 →` + `accent.primary`. 좌측 정렬, 아바타 생략. |
-| `msg_type=3` me-action | `✦ 홍길동 손을 흔든다` 중앙 정렬 + italic(또는 dim fallback). `fg.secondary`. |
-| `reply_to` 존재 | 본문 위에 세로선 `┊` + 원문 1줄 미리보기(최대 40자 · `fg.tertiary`). |
-| `edited_at` | 시간 옆에 ` · 수정됨` `fg.tertiary`. |
-| `is_deleted=1` | 본문 자리에 `(삭제된 메시지)` italic + `fg.tertiary`. |
-| `@mention` 포함 | 멘션 토큰만 `accent.primary` bold. 나를 멘션한 메시지의 아바타 옆에 `▌`. |
-
-**귓속말 예시:**
-```
- ✉ 귓속말 →  이건 나만 보이는 메시지야              14:08
-```
-- 귓속말 발신자/수신자 양쪽 클라이언트에만 표시. 방의 다른 멤버에게는 표시 안 됨.
-
-**me-action 예시:**
-```
-               ✦ 홍길동 손을 흔든다                14:09
+CSS:
+```css
+.typing-indicator {
+  color: @fg_secondary;
+  font-size: 12px;
+  font-style: italic;
+  margin: 2px 12px;
+}
 ```
 
 ---
 
-## 13. ReactionStrip
+## 9. SearchBar (검색 바)
 
-메시지 본문 바로 아래. 토글 가능 버튼처럼 시각화:
+```c
+GtkWidget *search_bar   = gtk_search_bar_new();
+GtkWidget *search_entry = gtk_search_entry_new();
+gtk_search_bar_connect_entry(GTK_SEARCH_BAR(search_bar), GTK_ENTRY(search_entry));
+gtk_search_bar_set_show_close_button(GTK_SEARCH_BAR(search_bar), TRUE);
 
+/* 검색어 변경 시그널 (300ms 디바운스) */
+g_signal_connect(search_entry, "search-changed", G_CALLBACK(on_search_changed), NULL);
 ```
- 👍 2   ❤ 1   😂 1
-```
-- 내가 누른 이모지는 `bg.elevated` inverse.
-- 스트립 전체는 `space.1` 들여쓰기.
 
-### 리액션 선택기 팝업
-
-`+` 키 또는 `/react <id>` 입력 시 오버레이 (z-layer 3):
-
-```
-╭──────────────────────────────────────────────────╮
-│  (^_^)  <3   (>_<)  (^o^)  (T_T)               │
-│  :+1:   :ok: :fire: :star: :100:                │
-╰──────────────────────────────────────────────────╯
-```
-- 방향키로 이동, `Enter`/`Space` 로 선택.
-- 이미 반응한 이모지는 inverse 표시 (재선택 시 취소).
+- HeaderBar 검색 버튼 또는 Ctrl+F → `gtk_search_bar_set_search_mode(bar, TRUE)`.
+- Escape → `gtk_search_bar_set_search_mode(bar, FALSE)`.
 
 ---
 
-## 14. Modal (확인창)
+## 10. MemberList (멤버 목록)
 
-회원가입 검증 실패·강퇴 확인 등:
+HeaderBar 멤버 버튼에 연결된 `GtkPopover`.
 
+```c
+GtkWidget *popover   = gtk_popover_new(member_btn);
+GtkWidget *pop_box   = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+GtkWidget *header    = make_member_header(member_count);
+GtkWidget *scroll    = gtk_scrolled_window_new(NULL, NULL);
+GtkWidget *list      = gtk_list_box_new();
+
+gtk_scrolled_window_set_min_content_height(GTK_SCROLLED_WINDOW(scroll), 300);
+gtk_scrolled_window_set_max_content_height(GTK_SCROLLED_WINDOW(scroll), 500);
 ```
-╭─ 확인 ─────────────────────────╮
-│                                │
-│  홍길동 님을 차단하시겠어요?  │
-│                                │
-│         [취소]  [차단]         │
-╰────────────────────────────────╯
+
+**MemberItem (GtkListBoxRow 내부):**
+
+```c
+GtkWidget *item_box  = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+GtkWidget *avatar    = make_avatar_label(nick);
+GtkWidget *info_box  = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
+GtkWidget *nick_lbl  = gtk_label_new(nickname);
+GtkWidget *dot       = make_status_dot(status);
+GtkWidget *role_icon = gtk_label_new("★");  /* 방장, ☆ 공동방장, "" 일반 */
 ```
 
-- 폭 40 고정, 중앙 배치.
-- 기본 포커스: 덜 위험한 쪽(`[취소]`).
-- `Esc` = 취소, `Enter` = 포커스 버튼.
+섹션 헤더: `gtk_list_box_set_header_func()`으로 "방장" / "관리자" / "멤버 (N)" 구분.
+
+**MemberItem 우클릭 → GtkPopoverMenu:**
+- `DM 보내기` (항상)
+- `강퇴` (방장/관리자 전용, GtkAlertDialog 확인)
+- `관리자 권한 부여/해제` (방장 전용)
 
 ---
 
-## 15. Toast (하단 스낵바)
+## 11. ReactionStrip (리액션 스트립)
 
-짧은 피드백:
+메시지 말풍선 아래에 표시되는 이모지 리액션 버튼들.
+
+```c
+GtkWidget *strip = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
+gtk_style_context_add_class(ctx, "reaction-strip");
+
+/* 각 이모지별 GtkButton */
+GtkWidget *btn = gtk_button_new_with_label("👍 2");
+gtk_style_context_add_class(ctx_btn, "reaction-btn");
+if (i_reacted) {
+    gtk_style_context_add_class(ctx_btn, "reacted");  /* 내가 누른 것 강조 */
+}
+g_signal_connect(btn, "clicked", G_CALLBACK(on_reaction_toggle), ...);
 ```
-                   ✓ 복사되었습니다                 
+
+CSS:
+```css
+.reaction-btn {
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 13px;
+  background-color: @bg_surface;
+  border: 1px solid @divider_color;
+}
+.reaction-btn.reacted {
+  background-color: @accent_primary;
+  color: @fg_on_accent;
+}
 ```
-- 화면 하단 중앙, 2초 유지, `fg.primary` on `bg.elevated`.
-- 성공 토스트: `feedback.success`.
-- 오류 토스트: `feedback.error`.
+
+**리액션 선택기 GtkPopover:**
+
+```c
+GtkWidget *picker    = gtk_popover_new(message_row);
+GtkWidget *flow_box  = gtk_flow_box_new();
+gtk_flow_box_set_max_children_per_line(GTK_FLOW_BOX(flow_box), 5);
+/* 이모지 버튼들 추가: 👍 ❤ 😂 😮 😢 🙏 🔥 ⭐ 💯 👏 */
+```
 
 ---
 
-## 16. MembersPanel (멤버 목록 오버레이)
+## 12. MessageDecorations (메시지 장식)
 
-CHAT 화면 우측 1/3 을 덮는 슬라이드 패널. z-layer 1.
+### 답장 인용 (GtkFrame)
 
-```
-╭──────────────────────────────────────╮
-│  멤버  12                       ×   │
-├──────────────────────────────────────┤
-│  방장                                │
-│   ╭──╮                              │
-│   │홍│  홍길동  ★                  │
-│   ╰──╯  ● online                    │
-│                                      │
-│  관리자                              │
-│   ╭──╮                              │
-│   │김│  김철수  ☆                  │
-│   ╰──╯  ● busy                      │
-│                                      │
-│  멤버 (10)                           │
-│   ╭──╮                              │
-│   │이│  이영희                      │
-│   ╰──╯  ○ offline                   │
-│   ...                                │
-╰──────────────────────────────────────╯
+```c
+GtkWidget *quote_frame = gtk_frame_new(NULL);
+gtk_style_context_add_class(ctx, "reply-quote");
+GtkWidget *quote_lbl   = gtk_label_new(original_text_preview);
+gtk_label_set_max_width_chars(GTK_LABEL(quote_lbl), 40);
+gtk_label_set_ellipsize(GTK_LABEL(quote_lbl), PANGO_ELLIPSIZE_END);
 ```
 
-- `★` = 방장, `☆` = 공동 방장.
-- 항목 선택 시 컨텍스트 메뉴:
-
-```
-╭─────────────────────────╮
-│  이영희  ○ offline      │
-│                         │
-│  1. DM 보내기           │
-│  2. 강퇴                │  ← 방장/관리자 전용
-│  3. 관리자 권한 부여    │  ← 방장 전용
-│  0. 취소                │
-╰─────────────────────────╯
+CSS:
+```css
+.reply-quote {
+  border-left: 3px solid @accent_primary;
+  padding: 4px 8px;
+  background-color: @bg_surface;
+  border-radius: 0 4px 4px 0;
+}
 ```
 
-- `Esc` 또는 `×` → 패널 닫힘, 채팅 화면 복귀.
+### 삭제된 메시지
+
+```c
+gtk_label_set_markup(bubble_lbl,
+    "<i><span color='@fg_tertiary'>(삭제된 메시지)</span></i>");
+```
+
+### 수정된 메시지
+
+```c
+gchar *ts_text = g_strdup_printf("%s · 수정됨", time_str);
+gtk_label_set_text(GTK_LABEL(timestamp_lbl), ts_text);
+gtk_style_context_add_class(ctx_ts, "dim-label");
+```
+
+### 멘션 강조
+
+```c
+/* gtk_label_set_markup으로 @닉네임 부분만 강조 */
+gchar *markup = g_markup_printf_escaped(
+    "%s<span color='#89b4fa' font_weight='bold'>@%s</span>%s",
+    before, mention_nick, after);
+gtk_label_set_markup(GTK_LABEL(bubble_lbl), markup);
+```
 
 ---
 
-## 17. SearchOverlay (메시지 검색 오버레이)
+## 13. EmptyState (빈 상태)
 
-CHAT 화면 상단 TopBar 아래에 오버레이. z-layer 1.
+```c
+GtkWidget *empty_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
+gtk_widget_set_halign(empty_box, GTK_ALIGN_CENTER);
+gtk_widget_set_valign(empty_box, GTK_ALIGN_CENTER);
 
-```
-╭──────────────────────────────────────────────────────────────────────────────────────╮
-│  ⌕  검색어 ▌                                              결과 3개   ↑  ↓   ×      │
-╰──────────────────────────────────────────────────────────────────────────────────────╯
-
-   [14:00]  홍길동:  과제 다들 "했어"?
-   [13:55]  김철수:  과제가 뭔지도 모르겠어...
-   [12:10]  이영희:  과제 제출 완료했어!
+GtkWidget *main_lbl = gtk_label_new("아직 친구가 없습니다.");
+GtkWidget *sub_lbl  = gtk_label_new("친구 추가 버튼으로 첫 친구를 추가해보세요.");
+gtk_style_context_add_class(ctx_sub, "dim-label");
 ```
 
-- 검색어 포함 단어 `"..."` 로 강조 (bold + accent.primary).
-- `↑` `↓` 로 결과 탐색. `Enter` = 해당 메시지 위치로 점프 + 하이라이트 2초.
-- 메시지 뷰 하이라이트:
-  ```
-  ╔══════════════════════════════════╗
-  ║ [14:00] 홍길동: 과제 다들 했어? ║   ← bg.elevated 테두리 강조
-  ╚══════════════════════════════════╝
-  ```
-- `Esc` 또는 `×` → 오버레이 닫힘, 이전 스크롤 위치 복귀.
+- 2행 구성: 상태 설명 + 행동 유도(dim).
+- 위젯 중앙 정렬.
 
 ---
 
-## 18. CommandSuggestion (커맨드 자동완성)
+## 14. RoomCard (오픈채팅 방 목록 아이템)
 
-Composer 에서 `/` 입력 시 팝업. z-layer 3.
+```c
+GtkWidget *card_box   = gtk_box_new(GTK_ORIENTATION_VERTICAL, 4);
+GtkWidget *top_row    = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+GtkWidget *name_lbl   = gtk_label_new(room_name);
+GtkWidget *count_lbl  = gtk_label_new("8/30");        /* meta-label */
+GtkWidget *lock_icon  = gtk_image_new_from_icon_name( /* 비번 방만 */
+                            "changes-prevent-symbolic"); /* GTK4: size enum 제거됨 */
+GtkWidget *topic_lbl  = gtk_label_new(room_topic);    /* dim-label */
 
+gtk_label_set_max_width_chars(GTK_LABEL(topic_lbl), 50);
+gtk_label_set_ellipsize(GTK_LABEL(topic_lbl), PANGO_ELLIPSIZE_END);
+gtk_style_context_add_class(ctx_name, "h3");
 ```
-  ╭──────────────────────────────────────────────────────────────╮
-  │  /del    <msg_id>          내 메시지 삭제                    │
-  │  /dnd                      방해금지 모드 토글                │
-▌ │  /dm     <id>              1:1 DM 시작        ← 현재 선택   │
-  │  /edit   <msg_id> <내용>   내 메시지 수정 (5분 내)          │
-  │  /friend <sub> <id>        친구 관리                        │
-  ╰──────────────────────────────────────────────────────────────╯
-╭──────────────────────────────────────────────────────────────────────────────────────╮
-│ ⌘ /d▌                                                        /help        ⏎ 전송   │
-╰──────────────────────────────────────────────────────────────────────────────────────╯
-```
 
-- 최대 5개 표시, 스크롤 가능.
-- 현재 화면에서 사용 불가 커맨드: `fg.tertiary` + dim.
-- 커맨드 확정 후 인자 힌트 1줄 표시:
-  ```
-    /reply <msg_id> <내용>
-  ```
-- `Tab`/`Enter`: 확정. `Esc`: 팝업 닫기. 계속 타이핑: 실시간 필터.
+- 만원인 방: `count_lbl`에 `error` CSS class + `[FULL]` GtkLabel 추가.
+- 참여 중인 방: 우측에 `[참여중]` GtkLabel (CSS class: `status-chip-online`).
 
 ---
 
-## 19. EmptyState (빈 상태)
+## 15. ConfirmDialog (확인 다이얼로그)
 
-```
-                     아직 친구가 없습니다.
-                     /friend add <ID> 로 첫 친구를 추가해보세요.
+강퇴·삭제 등 위험 액션에 사용하는 표준 확인 다이얼로그 (GTK4 GtkAlertDialog 사용).
+
+```c
+GtkAlertDialog *dialog = gtk_alert_dialog_new("홍길동 님을 강퇴하시겠어요?");
+const char *buttons[] = {"취소", "강퇴", NULL};
+gtk_alert_dialog_set_buttons(dialog, buttons);
+gtk_alert_dialog_set_cancel_button(dialog, 0);   /* 취소 = 인덱스 0 */
+gtk_alert_dialog_set_default_button(dialog, 0);  /* 기본 포커스: 덜 위험한 쪽 */
+
+gtk_alert_dialog_choose(dialog, GTK_WINDOW(parent), NULL,
+                        on_confirm_response, user_data);
 ```
 
-- 2행 구성: 상태 설명(`fg.secondary`) + 행동 유도(`fg.tertiary`).
-- 세로 중앙 정렬, 가로 중앙 정렬.
-- 장식(아이콘, 이미지) 없음.
+- 기본 포커스: 덜 위험한 쪽 (`취소`).
+- Escape = 취소, Enter = 포커스 버튼.
 
 ---
 
-## 20. RoomCard (오픈채팅 방 목록 아이템)
+## 16. Toast (스낵바)
 
-```
-╭──────────────────────────────────────────────────╮
-│ #  방이름 (bold)                       8/30  [◈] │
-│    주제 한 줄 (fg.secondary, 50자 truncate)      │
-╰──────────────────────────────────────────────────╯
+짧은 피드백 메시지 (GTK4에서 GtkInfoBar 제거됨 → GtkRevealer 사용).
+
+```c
+/* GtkOverlay의 오버레이로 하단에 표시 */
+GtkWidget *revealer = gtk_revealer_new();
+gtk_revealer_set_transition_type(GTK_REVEALER(revealer),
+    GTK_REVEALER_TRANSITION_TYPE_CROSSFADE);
+
+GtkWidget *toast_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+gtk_widget_add_css_class(toast_box, "toast");
+gtk_box_append(GTK_BOX(toast_box), gtk_label_new("복사되었습니다."));
+gtk_revealer_set_child(GTK_REVEALER(revealer), toast_box);
+
+gtk_widget_set_halign(revealer, GTK_ALIGN_CENTER);
+gtk_widget_set_valign(revealer, GTK_ALIGN_END);
+
+/* 표시 */
+gtk_revealer_set_reveal_child(GTK_REVEALER(revealer), TRUE);
+
+/* 2초 후 자동 해제 */
+g_timeout_add(2000, (GSourceFunc)hide_toast_cb, revealer);
 ```
 
-- `◈` = 비밀번호 방 (`feedback.warn`).
-- 만원: `cur/max` → `feedback.error` + `[FULL]`.
-- 참여 중: 우측 `● 참여중` chip (`status.online`).
-- 선택(hover): 왼쪽 `▌` + `bg.elevated`.
+- 성공: CSS class `toast-info`.
+- 오류: CSS class `toast-error`.
 
 ---
 
-## 21. InlineConfirm (인라인 확인)
+## 17. CommandSuggestion (커맨드 자동완성)
 
-강퇴·삭제 등 위험 액션의 경량 확인. 모달보다 가벼운 2행 인라인:
+입력창에서 `/` 타이핑 시 `GtkPopover`로 자동완성 목록 표시.
 
+```c
+GtkWidget *suggest_pop  = gtk_popover_new(message_entry);
+GtkWidget *suggest_list = gtk_list_box_new();
+
+/* 현재 입력에 맞는 커맨드 필터링 후 GtkListBoxRow 추가 */
+for each matching_cmd:
+    GtkWidget *row_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 16);
+    GtkWidget *cmd_lbl = gtk_label_new(cmd_name);   /* bold */
+    GtkWidget *arg_lbl = gtk_label_new(cmd_args);   /* dim */
+    GtkWidget *desc    = gtk_label_new(cmd_desc);   /* dim, hexpand */
 ```
-  /kick 이영희  — 강퇴하시겠어요?   [y 확인]  [n 취소]
-```
 
-- Composer 위 1행. `y` = 확인 진행, `n`/`Esc` = 취소.
-- 5초 내 응답 없으면 자동 취소.
+- 최대 5개 표시, 나머지는 스크롤.
+- 현재 화면에서 사용 불가 커맨드: CSS class `disabled` + `gtk_widget_set_sensitive(row, FALSE)`.
+- Tab/Enter: 커맨드 확정. Escape: 팝업 닫기.
 
 ---
 
-## 22. PinNoticeBar (핀·공지 표시)
+## 18. PinNoticeBar (공지/핀 표시)
 
-TopBar 아래 1행(핀 있을 때만):
+```c
+GtkWidget *revealer  = gtk_revealer_new();
+GtkWidget *notice_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+gtk_widget_add_css_class(notice_box, "notice-bar");
 
+GtkWidget *icon_lbl = gtk_label_new("◈");
+GtkWidget *text_lbl = gtk_label_new(notice_text);
+GtkWidget *more_btn = gtk_button_new_with_label("전체 보기");
+
+gtk_label_set_ellipsize(GTK_LABEL(text_lbl), PANGO_ELLIPSIZE_END);
+gtk_label_set_max_width_chars(GTK_LABEL(text_lbl), 60);
+gtk_widget_set_hexpand(text_lbl, TRUE);
+
+gtk_box_append(GTK_BOX(notice_box), icon_lbl);
+gtk_box_append(GTK_BOX(notice_box), text_lbl);
+gtk_box_append(GTK_BOX(notice_box), more_btn);
+gtk_revealer_set_child(GTK_REVEALER(revealer), notice_box);
 ```
-◈  오늘 자정까지 제출                                           ← 클릭 시 전문 보기
-```
 
-- `fg.secondary` + 왼쪽 `◈` 아이콘.
-- 내용이 길면 `…` truncate.
-- 공지(`notice`)와 핀 메시지(`pinned_msg`) 둘 다 있으면 공지 우선. 나머지는 `⋯` 메뉴에서 확인.
+- 공지 없으면 `gtk_revealer_set_reveal_child(revealer, FALSE)`.
+- `[전체 보기]` 클릭 → GtkWindow로 공지 전문 표시.

@@ -9,7 +9,6 @@ WHISPER|<room_id>|<target_id>|<content>            # 귓속말
 ME|<room_id>|<action>                              # "/me 춤춘다" → msg_type=3
 MSG_EDIT|<msg_id>|<content>                        # 5분 내, 본인
 MSG_DELETE|<msg_id>
-MSG_REACT|<msg_id>|<emoji>                         # 토글
 MSG_SEARCH|<room_id>|<keyword>
 HISTORY|<room_id>                                  # 최근 100
 ```
@@ -23,7 +22,6 @@ WHISPER_RES|<code>
 ME_RES|<code>
 MSG_EDIT_RES|<code>            # 5=권한, 6=시한초과/삭제됨
 MSG_DELETE_RES|<code>
-MSG_REACT_RES|0|<emoji>|<added:0 or 1>   # added=1 추가, 0 제거
 MSG_SEARCH_RES|0|<id>:<from_id>:<created_at>:<content>;...
 HISTORY_RES|0|<id>:<from_id>:<reply_to>:<msg_type>:<is_deleted>:<created_at>:<edited_at>:<content>;...
 ```
@@ -37,7 +35,6 @@ WHISPER_NOTIFY|<room_id>|<from_id>|<from_nick>|<to_id>|<content>   # from,to 둘
 ME_NOTIFY|<room_id>|<from_id>|<from_nick>|<msg_id>|<action>
 MSG_EDITED_NOTIFY|<room_id>|<msg_id>|<content>
 MSG_DELETED_NOTIFY|<room_id>|<msg_id>
-MSG_REACT_NOTIFY|<room_id>|<msg_id>|<user_id>|<emoji>|<added>
 ```
 
 ## content 제약
@@ -48,4 +45,4 @@ MSG_REACT_NOTIFY|<room_id>|<msg_id>|<user_id>|<emoji>|<added>
 
 ## 관련 DB
 
-- `messages`, `reactions`. `query_catalog.md` "메시지", "리액션" 절.
+- `messages`. `query_catalog.md` "메시지" 절.

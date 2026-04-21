@@ -4,7 +4,7 @@
 
 ```mermaid
 flowchart LR
-    subgraph Clients["클라이언트(콘솔)"]
+    subgraph Clients["클라이언트(GTK4 GUI)"]
         C1[User A\nchat_client]
         C2[User B\nchat_client]
         C3[User C\nchat_client]
@@ -41,7 +41,7 @@ flowchart LR
 | 요소 | 책임 |
 |------|------|
 | **chat_server** | 단일 프로세스, 스레드 다수. TCP listen + 핸들러 스폰 + 브로드캐스트. |
-| **chat_client** | 단일 프로세스, send/recv 두 스레드 + TUI 렌더 루프. |
+| **chat_client** | 단일 프로세스, send/recv 두 스레드 + GTK4 GUI 이벤트 루프. |
 | **MySQL** | 유일한 영속 저장소. 스키마는 [`07_database/`](../07_database/). |
 
 ## 3. 배포 토폴로지 (예시)
@@ -56,6 +56,7 @@ flowchart LR
 |--------|------|
 | MySQL 5.7+ / 8.x | 영속 저장 |
 | libmysqlclient (C API) | 서버측 DB 접근 |
+| GTK4 (libgtk-4) | 클라이언트 GUI 위젯 툴킷 |
 | pthread | 스레드 |
 | 표준 C11 런타임 | 공통 |
 

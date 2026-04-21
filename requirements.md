@@ -1,5 +1,5 @@
 # Requirements Specification
-# C Console Chat Application — KakaoTalk/Google Chat Style
+# C GTK4 GUI Chat Application — KakaoTalk/Google Chat Style
 
 **Version**: 2.0.0  
 **Date**: 2026-04-20  
@@ -10,8 +10,8 @@
 
 ## 1. 프로젝트 개요
 
-콘솔 환경에서 동작하는 실시간 채팅 어플리케이션.  
-카카오톡의 1:1 채팅 / 오픈채팅방 구조와 Google Chat의 Space(채널) 개념을 콘솔 UX로 구현한다.  
+GTK4 GUI 환경에서 동작하는 실시간 채팅 어플리케이션.  
+카카오톡의 1:1 채팅 / 오픈채팅방 구조와 Google Chat의 Space(채널) 개념을 GTK4 GUI로 구현한다.  
 모든 데이터(유저, 메시지, 채팅방, 친구 관계)는 MySQL에 영속 저장하며, 서버 재시작 후에도 기록이 유지된다.
 
 ---
@@ -42,13 +42,13 @@
 ┌──────────────────────────────────────────────────────────┐
 │                        CLIENT                            │
 │  ┌──────────────┐         ┌──────────────────────────┐  │
-│  │  Input Loop  │         │  Receive Thread          │  │
-│  │  (raw tty,   │         │  (socket → msg queue)    │  │
-│  │   char-read) │         │                          │  │
+│  │  GTK 이벤트  │         │  Receive Thread          │  │
+│  │  루프        │         │  (socket → msg queue)    │  │
+│  │              │         │                          │  │
 │  └──────────────┘         └──────────────────────────┘  │
 │  ┌──────────────────────────────────────────────────┐    │
-│  │  TUI Renderer — ANSI 색상, 박스 드로잉            │    │
-│  │  screen: LOGIN | MAIN | CHAT | MYPAGE | SETTINGS  │    │
+│  │  GTK4 위젯 렌더러                                │    │
+│  │  window: LOGIN | MAIN | CHAT | MYPAGE | SETTINGS  │    │
 │  └──────────────────────────────────────────────────┘    │
 └──────────────────────────────────────────────────────────┘
 ```
@@ -141,7 +141,7 @@
 | FR-M02 | 메시지 삭제 | `/del <msg_id>` — 내 메시지 삭제. 상대에겐 `삭제된 메시지` 표시 |
 | FR-M03 | 메시지 수정 | `/edit <msg_id> <새내용>` — 전송 후 5분 이내 수정 가능. `(수정됨)` 표시 |
 | FR-M04 | 답장(인용) | `/reply <msg_id> <내용>` — 특정 메시지 인용 후 답장. 인용 원문 축약 표시 |
-| FR-M05 | 리액션 | `/react <msg_id> <이모지>` — 메시지에 텍스트 이모지 반응 추가/취소. 집계 표시 |
+| FR-M05 | 리액션 *(Out-of-Scope)* | ~~`/react <msg_id> <이모지>` — 메시지에 텍스트 이모지 반응 추가/취소. 집계 표시~~ |
 | FR-M06 | 이모티콘 변환 | `:smile:` → `(^_^)`, `:heart:` → `<3` 등 텍스트 이모지 세트 |
 | FR-M07 | 시스템 메시지 | 입/퇴장, 초대, 강퇴, 공지 등 이벤트를 구분된 색상으로 표시 |
 | FR-M08 | 메시지 검색 | `/search <키워드>` — 현재 채팅방 내 메시지 전문 검색 |
@@ -155,12 +155,12 @@
 
 | ID | 기능 | 설명 |
 |----|------|------|
-| FR-N01 | 메시지 알림 | 현재 보고 있지 않은 채팅방/DM 메시지 수신 시 상단 배너 출력 |
+| FR-N01 | 메시지 알림 | 현재 보고 있지 않은 채팅방/DM 메시지 수신 시 알림 팝업(GtkRevealer) 표시 |
 | FR-N02 | 친구 요청 알림 | 로그인 시 및 실시간으로 알림 |
 | FR-N03 | 멘션 알림 | `@나` 언급 시 강조 알림 (DND 상태에서도 표시) |
-| FR-N04 | DND 모드 | `/dnd` 명령으로 알림 무음 설정 (멘션 제외) |
+| FR-N04 | DND 모드 | GUI 토글 버튼으로 알림 무음 설정 (멘션 제외) |
 | FR-N05 | 타이핑 표시 | 상대방이 입력 중일 때 `홍길동 님이 입력 중...` 표시 |
-| FR-N06 | 방 알림 무음 | `/mute` — 특정 채팅방 알림만 무음 처리 |
+| FR-N06 | 방 알림 무음 | GUI 메뉴에서 특정 채팅방 알림만 무음 처리 |
 
 ---
 
@@ -168,9 +168,9 @@
 
 | ID | 기능 | 설명 |
 |----|------|------|
-| FR-C01 | 내 메시지 색상 | 내가 보낸 메시지의 텍스트 색상 선택 (red/green/yellow/blue/magenta/cyan/white) |
-| FR-C02 | 닉네임 색상 | 채팅창에 표시되는 내 닉네임 색상 선택 |
-| FR-C03 | 테마 | dark / light 터미널 테마 선택 (배경 전제 색상 팔레트) |
+| FR-C01 | 내 메시지 색상 | 내가 보낸 메시지의 텍스트 색상 선택 (GTK4 색상 선택기) |
+| FR-C02 | 닉네임 색상 | 채팅창에 표시되는 내 닉네임 색상 선택 (GTK4 색상 선택기) |
+| FR-C03 | 테마 | dark / light GTK4 테마 선택 |
 | FR-C04 | 타임스탬프 형식 | `HH:MM` / `HH:MM:SS` / `MM-DD HH:MM` 중 선택 |
 | FR-C05 | 상태메시지 | 친구 목록에 표시되는 한 줄 상태메시지 수정 |
 | FR-C06 | 온라인 상태 | `online` / `busy` / `invisible` 수동 설정 |
@@ -191,15 +191,17 @@
 
 ---
 
-### 3-10. 관리자 기능
+### 3-10. 관리자 기능 *(Out-of-Scope)*
+
+> 아래 기능은 현재 범위에서 제외되었습니다.
 
 | ID | 기능 | 설명 |
 |----|------|------|
-| FR-ADM01 | 전체 공지 | 서버 전체 접속 유저에게 공지 브로드캐스트 |
-| FR-ADM02 | 유저 강제 로그아웃 | 특정 유저 강제 접속 해제 |
-| FR-ADM03 | 서버 상태 조회 | 접속 인원, 활성 채팅방 수, DB 레코드 수 등 통계 |
-| FR-ADM04 | 유저 목록 조회 | 전체 가입 유저 목록 (온/오프라인 포함) |
-| FR-ADM05 | 채팅방 강제 삭제 | 특정 채팅방 강제 종료 및 삭제 |
+| FR-ADM01 | ~~전체 공지~~ | ~~서버 전체 접속 유저에게 공지 브로드캐스트~~ |
+| FR-ADM02 | ~~유저 강제 로그아웃~~ | ~~특정 유저 강제 접속 해제~~ |
+| FR-ADM03 | ~~서버 상태 조회~~ | ~~접속 인원, 활성 채팅방 수, DB 레코드 수 등 통계~~ |
+| FR-ADM04 | ~~유저 목록 조회~~ | ~~전체 가입 유저 목록 (온/오프라인 포함)~~ |
+| FR-ADM05 | ~~채팅방 강제 삭제~~ | ~~특정 채팅방 강제 종료 및 삭제~~ |
 
 ---
 
@@ -302,8 +304,8 @@ S→C  MSG_EDITED_NOTIFY|<room_id>:<msg_id>:<new_content>
 C→S  MSG_REPLY|<room_id>:<reply_to_id>:<content>
      # 처리 후 ROOM_MSG_RECV 로 브로드캐스트 (reply_to_id 포함)
 
-C→S  MSG_REACT|<room_id>:<msg_id>:<emoji>     # 이미 반응했으면 토글(취소)
-S→C  MSG_REACT_NOTIFY|<room_id>:<msg_id>:<emoji>:<count>:<user_list>
+C→S  MSG_REACT|<room_id>:<msg_id>:<emoji>     # Out-of-Scope (FR-M05)
+S→C  MSG_REACT_NOTIFY|<room_id>:<msg_id>:<emoji>:<count>:<user_list>  # Out-of-Scope
 
 C→S  MSG_SEARCH|<room_id>:<keyword>
 S→C  MSG_SEARCH_RES|<msg_id>:<from_nick>:<content>:<timestamp>|...
@@ -349,11 +351,11 @@ S→C  TYPING_NOTIFY|<room_id>:<nick>:<is_typing>   # 0 or 1
 S→C  NOTIFY|<type>:<content>    # type: MENTION | FRIEND_REQ | SERVER | DM | REACTION
 ```
 
-**관리자**
+**관리자** *(Out-of-Scope)*
 ```
-C→S  ADMIN_CMD|<cmd>:<args>
-     # cmd: broadcast, kick_user, server_stat, user_list, delete_room
-S→C  ADMIN_RES|<code>:<data>
+# C→S  ADMIN_CMD|<cmd>:<args>
+#      cmd: broadcast, kick_user, server_stat, user_list, delete_room
+# S→C  ADMIN_RES|<code>:<data>
 ```
 
 **연결 유지**
@@ -456,17 +458,17 @@ CREATE TABLE dm_reads (
     FOREIGN KEY (reader_id) REFERENCES users(id)    ON DELETE CASCADE
 );
 
--- 메시지 리액션
-CREATE TABLE reactions (
-    id           INT          AUTO_INCREMENT PRIMARY KEY,
-    msg_id       INT          NOT NULL,
-    user_id      VARCHAR(20)  NOT NULL,
-    emoji        VARCHAR(20)  NOT NULL,
-    created_at   DATETIME     DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uniq_reaction (msg_id, user_id, emoji),
-    FOREIGN KEY (msg_id)   REFERENCES messages(id)  ON DELETE CASCADE,
-    FOREIGN KEY (user_id)  REFERENCES users(id)     ON DELETE CASCADE
-);
+-- 메시지 리액션 (Out-of-Scope: FR-M05)
+-- CREATE TABLE reactions (
+--     id           INT          AUTO_INCREMENT PRIMARY KEY,
+--     msg_id       INT          NOT NULL,
+--     user_id      VARCHAR(20)  NOT NULL,
+--     emoji        VARCHAR(20)  NOT NULL,
+--     created_at   DATETIME     DEFAULT CURRENT_TIMESTAMP,
+--     UNIQUE KEY uniq_reaction (msg_id, user_id, emoji),
+--     FOREIGN KEY (msg_id)   REFERENCES messages(id)  ON DELETE CASCADE,
+--     FOREIGN KEY (user_id)  REFERENCES users(id)     ON DELETE CASCADE
+-- );
 ```
 
 ---
@@ -496,123 +498,74 @@ extern pthread_mutex_t g_sessions_mutex;
 
 ---
 
-## 7. 클라이언트 TUI 화면 설계
+## 7. 클라이언트 GTK4 GUI 화면 설계
 
-### 로그인 화면
-```
-╔══════════════════════════════╗
-║     C Chat  v2.0             ║
-╠══════════════════════════════╣
-║  1. 로그인                   ║
-║  2. 회원가입                 ║
-║  0. 종료                     ║
-╚══════════════════════════════╝
-```
+### 로그인 창 (GtkWindow)
+- `GtkEntry` — ID / 비밀번호 입력
+- `GtkButton` — 로그인 / 회원가입 버튼
+- 오류 메시지는 `GtkLabel` (빨간색)로 창 하단 표시
 
-### 메인 화면 (탭 구조)
-```
-╔══════════════════════════════════════════════╗
-║  [친구목록] [채팅] [오픈채팅] [마이페이지]   ║
-╠══════════════════════════════════════════════╣
-║  친구 목록 (3/5 온라인)                      ║
-║  ──────────────────────────────────          ║
-║  [ON]  홍길동    — 오늘도 화이팅             ║
-║  [ON]  김철수    — 점심 뭐 먹지             ║
-║  [바쁨] 이영희   — 공부중                   ║
-║  [OFF] 박민준   (마지막 접속: 2시간 전)      ║
-╠══════════════════════════════════════════════╣
-║  > 명령 입력 (/help 도움말)                  ║
-╚══════════════════════════════════════════════╝
-```
+### 메인 창 — 탭 구조 (GtkNotebook)
+- **탭 1 — 친구목록**: `GtkListBox`에 온라인/오프라인 친구 항목 (상태 아이콘 + 닉네임 + 상태메시지)
+- **탭 2 — 채팅**: 참여 중인 채팅방 목록, 미읽 메시지 수 배지
+- **탭 3 — 오픈채팅**: 오픈채팅방 목록 및 검색
+- **탭 4 — 마이페이지**: 프로필, 통계, 참여 방 목록
 
-### 채팅 화면
-```
-╔══════════════════════════════════════════════╗
-║  # 컴공 스터디그룹  (12/30명)  [공지: 과제!] ║
-║  📌 핀: "오늘 자정까지 제출"                ║
-╠══════════════════════════════════════════════╣
-║  [14:02] 홍길동: 과제 다들 했어?            ║
-║  [14:03]  ↩ 홍길동에게: ㄴㄴ 지금 시작...   ║
-║  [14:03] 시스템: 이영희 님이 입장했습니다.  ║
-║  [14:04] 이영희: 안녕하세요!                ║
-║          👍 2  ❤ 1                          ║
-║  [14:05] @이영희 홍길동: 방금 입장했군요    ║
-║  [14:06] 나(홍길동): 반가워요      [읽음]   ║
-║  홍길동 님이 입력 중...                      ║
-╠══════════════════════════════════════════════╣
-║  > 메시지 입력 (/help 명령어 목록)           ║
-╚══════════════════════════════════════════════╝
-```
+### 채팅 창 (GtkWindow 또는 GtkNotebook 탭)
+- 상단 `GtkHeaderBar`: 방 이름, 참여 인원, 공지사항 표시
+- 핀 메시지 `GtkRevealer` (접을 수 있음)
+- 메시지 영역 `GtkScrolledWindow` + `GtkListBox`
+  - 내 메시지: 오른쪽 정렬 말풍선
+  - 상대 메시지: 왼쪽 정렬 말풍선 (닉네임 + 타임스탬프 + [읽음])
+  - 시스템 메시지: 중앙 정렬, 회색 텍스트
+- 하단 입력 영역: `GtkEntry` + 전송 `GtkButton`
+- 타이핑 표시: 입력 영역 위 `GtkLabel` (`홍길동 님이 입력 중...`)
 
-### 마이페이지 화면
-```
-╔══════════════════════════════════════════════╗
-║  ★ 마이페이지                               ║
-╠══════════════════════════════════════════════╣
-║  ID       : hong123                          ║
-║  닉네임   : 홍길동                           ║
-║  상태     : [ON] 오늘도 화이팅               ║
-║  가입일   : 2026-01-15                       ║
-║  마지막   : 방금 전                          ║
-║  ──────────────────────────────────          ║
-║  총 메시지: 1,243 개                         ║
-║  참여 방  : 5 개                             ║
-║  친구 수  : 12 명                            ║
-╠══════════════════════════════════════════════╣
-║  1. 프로필 수정   2. 비밀번호 변경           ║
-║  3. 설정          0. 돌아가기                ║
-╚══════════════════════════════════════════════╝
-```
+### 마이페이지 (GtkGrid 레이아웃)
+- ID, 닉네임, 상태메시지, 가입일, 마지막 접속 시간 표시
+- 활동 통계 (총 메시지, 참여 방, 친구 수)
+- 프로필 수정 / 비밀번호 변경 `GtkButton`
 
-### 설정 화면
-```
-╔══════════════════════════════════════════════╗
-║  ⚙  설정                                    ║
-╠══════════════════════════════════════════════╣
-║  1. 내 메시지 색상  : [cyan   ] ▶            ║
-║  2. 닉네임 색상     : [yellow ] ▶            ║
-║  3. 테마            : [dark   ] ▶            ║
-║  4. 타임스탬프 형식 : [HH:MM  ] ▶            ║
-║  5. DND 모드        : [OFF    ] ▶            ║
-║  0. 돌아가기                                 ║
-╚══════════════════════════════════════════════╝
-```
+### 설정 창 (GtkWindow)
+- 내 메시지 색상: `GtkColorDialogButton`
+- 닉네임 색상: `GtkColorDialogButton`
+- 테마: `GtkDropDown` (dark / light)
+- 타임스탬프 형식: `GtkDropDown`
+- DND 모드: `GtkSwitch`
 
 ---
 
-## 8. 클라이언트 명령어 (슬래시 커맨드)
+## 8. 클라이언트 GUI 메뉴/버튼
 
-| 명령어 | 설명 |
-|--------|------|
-| `/help` | 전체 명령어 목록 출력 |
-| `/w <닉네임> <내용>` | 귓속말 전송 |
-| `/del <msg_id>` | 내 메시지 삭제 |
-| `/edit <msg_id> <내용>` | 내 메시지 수정 (5분 이내) |
-| `/reply <msg_id> <내용>` | 특정 메시지에 답장 |
-| `/react <msg_id> <이모지>` | 메시지 리액션 추가/취소 |
-| `/pin <msg_id>` | 메시지 핀 고정 (방장/관리자) |
-| `/search <키워드>` | 현재 방 메시지 검색 |
-| `/invite <id>` | 현재 방에 친구 초대 |
-| `/kick <닉네임>` | 멤버 강퇴 (방장/관리자) |
-| `/notice <내용>` | 공지 등록 (방장/관리자) |
-| `/grant <닉네임>` | 공동 방장 부여 (방장 전용) |
-| `/revoke <닉네임>` | 공동 방장 해제 (방장 전용) |
-| `/members` | 현재 방 멤버 목록 |
-| `/mute` | 현재 방 알림 무음 토글 |
-| `/leave` | 채팅방 나가기 |
-| `/me <동작>` | 액션 메시지 전송 |
-| `/open_nick <닉네임>` | 오픈채팅 전용 닉네임 설정 |
-| `/friend add <id>` | 친구 추가 요청 |
-| `/friend list` | 친구 목록 조회 |
-| `/friend block <id>` | 친구 차단 |
-| `/find <keyword>` | 유저/닉네임 검색 |
-| `/rooms [open\|group]` | 채팅방 목록 조회 |
-| `/room search <키워드>` | 채팅방 이름/주제 검색 |
-| `/status <online\|busy\|invisible>` | 내 상태 변경 |
-| `/profile <닉네임> <상태메시지>` | 프로필 수정 |
-| `/dnd` | DND 모드 토글 |
-| `/mypage` | 마이페이지 화면으로 이동 |
-| `/settings` | 설정 화면으로 이동 |
+| 기능 | GUI 요소 |
+|------|----------|
+| 도움말 | `GtkAboutDialog` 또는 인앱 도움말 버튼 |
+| 귓속말 (`/w`) | 채팅 창 우클릭 컨텍스트 메뉴 → "귓속말 보내기" |
+| 메시지 삭제 (`/del`) | 메시지 말풍선 호버 시 삭제 버튼 표시 |
+| 메시지 수정 (`/edit`) | 메시지 말풍선 호버 시 수정 버튼 (5분 이내) |
+| 답장 인용 (`/reply`) | 메시지 말풍선 호버 시 "답장" 버튼 |
+| 메시지 핀 고정 (`/pin`) | 방장/관리자: 컨텍스트 메뉴 → "핀 고정" |
+| 메시지 검색 (`/search`) | 채팅 창 상단 검색 아이콘 버튼 |
+| 친구 초대 (`/invite`) | 채팅 창 멤버 패널 → "초대" 버튼 |
+| 멤버 강퇴 (`/kick`) | 멤버 목록 컨텍스트 메뉴 → "강퇴" (방장/관리자) |
+| 공지 등록 (`/notice`) | 채팅 창 상단 ⚙ 버튼 → "공지 설정" (방장/관리자) |
+| 공동 방장 부여/해제 (`/grant`, `/revoke`) | 멤버 목록 컨텍스트 메뉴 (방장 전용) |
+| 현재 방 멤버 목록 (`/members`) | 채팅 창 우측 멤버 패널 (토글) |
+| 방 알림 무음 (`/mute`) | 채팅 목록 항목 우클릭 → "알림 무음 토글" |
+| 채팅방 나가기 (`/leave`) | 채팅 창 상단 ⚙ 버튼 → "채팅방 나가기" |
+| 액션 메시지 (`/me`) | 입력창 `/me` 접두사 입력 시 액션 모드로 전송 |
+| 오픈채팅 닉네임 (`/open_nick`) | 오픈채팅 참여 시 닉네임 입력 다이얼로그 |
+| 친구 추가 | 메인 창 친구목록 탭 → "+" 버튼 |
+| 친구 목록 | 메인 창 친구목록 탭 |
+| 친구 차단 | 친구 항목 우클릭 → "차단" |
+| 유저/닉네임 검색 | 메인 창 검색창 |
+| 채팅방 목록 (그룹/오픈) | 메인 창 채팅/오픈채팅 탭 |
+| 채팅방 검색 | 오픈채팅 탭 상단 검색창 |
+| 상태 변경 | 상단 바 아바타 클릭 → 상태 드롭다운 (online / busy / invisible) |
+| 프로필 수정 | 마이페이지 탭 → "프로필 수정" 버튼 |
+| DND 모드 | 상단 바 또는 설정 창 `GtkSwitch` |
+| 마이페이지 | 메인 창 마이페이지 탭 |
+| 설정 | 상단 바 ⚙ 버튼 → 설정 `GtkWindow` (모달) |
 
 ---
 
@@ -625,8 +578,8 @@ extern pthread_mutex_t g_sessions_mutex;
 | NFR-03 | 안정성 | 클라이언트 비정상 종료 시 서버 크래시 없음 |
 | NFR-04 | 보안 | 비밀번호 SHA-256 해시 저장 (MySQL `SHA2()` 활용). 평문 전송은 로컬 환경 한정 |
 | NFR-05 | 경량성 | 서버 메모리 사용 100MB 이하 (MySQL 제외) |
-| NFR-06 | 이식성 | Linux / Windows(MinGW) 동시 빌드 지원 |
-| NFR-07 | 확장성 | 서버/클라이언트 분리 구조. 추후 GUI 레이어 교체 가능 |
+| NFR-06 | 이식성 | Linux / Windows(MinGW) 동시 빌드 지원. GTK4 4.0+ 필요 |
+| NFR-07 | 확장성 | 서버/클라이언트 분리 구조. GTK4 GUI 레이어 기반 |
 | NFR-08 | 영속성 | 서버 재시작 후 메시지·유저·채팅방 데이터 유지 (MySQL) |
 | NFR-09 | 스레드 안전 | DB 연결은 스레드 전용. 세션 배열 접근은 mutex 보호 |
 
@@ -650,21 +603,19 @@ C_ChatProgram/
 │   ├── dm.c / dm.h         # 1:1 DM 처리
 │   ├── message.c / .h      # 메시지 저장·삭제·수정·검색·리액션
 │   ├── broadcast.c / .h    # 룸 브로드캐스트, 알림 전송
-│   └── admin.c / admin.h   # 관리자 명령 처리
+│   └── admin.c / admin.h   # 관리자 명령 처리 (Out-of-Scope)
 │
 ├── client/
-│   ├── main.c              # 클라이언트 진입점, 화면 라우팅
-│   ├── state.h / state.c   # 전역 클라이언트 상태 (소켓, 현재 화면, 설정)
+│   ├── main.c              # 클라이언트 진입점, gtk_init, 화면 라우팅
+│   ├── state.h / state.c   # 전역 클라이언트 상태 (소켓, 현재 창, 설정)
 │   ├── net.c / net.h       # 소켓 연결, recv 스레드, send 함수
-│   ├── ui.c / ui.h         # ANSI 색상 매크로, 박스 드로잉 헬퍼
-│   ├── console.h           # 플랫폼별 raw mode / getch 추상화
-│   ├── input.c / input.h   # 슬래시 커맨드 파서, char-by-char 입력 루프
-│   ├── notify.c / notify.h # 알림 배너 큐, 출력 처리
-│   ├── screen_login.c/h    # 로그인·회원가입 화면
-│   ├── screen_main.c/h     # 메인(친구·채팅목록) 화면
-│   ├── screen_chat.c/h     # 채팅방 화면
-│   ├── screen_mypage.c/h   # 마이페이지 화면
-│   └── screen_settings.c/h # 설정 화면
+│   ├── app_window.c/h      # GTK4 메인 창, 위젯 레이아웃, 테마 적용
+│   ├── notify.c / notify.h # 알림 GtkRevealer 큐, 표시 처리
+│   ├── screen_login.c/h    # 로그인·회원가입 GTK4 창
+│   ├── screen_main.c/h     # 메인(친구·채팅목록) GtkNotebook 탭
+│   ├── screen_chat.c/h     # 채팅방 GTK4 창
+│   ├── screen_mypage.c/h   # 마이페이지 GTK4 탭
+│   └── screen_settings.c/h # 설정 GtkWindow
 │
 ├── common/
 │   ├── protocol.h          # 패킷 타입 상수, 구분자, 응답 코드
@@ -686,6 +637,6 @@ C_ChatProgram/
 |----------|-----------|-----------|
 | P0 (필수) | MySQL 연동, 소켓 연결, 로그인/회원가입, 그룹·오픈채팅 | 동작하는 MVP |
 | P1 (중요) | DM, 친구 관리, 읽음 확인, 비밀번호 방, 마이페이지 | 핵심 사용자 경험 |
-| P2 (권장) | 커스터마이징(색상·테마), 설정 화면, 메시지 수정·삭제, 공지·핀 | 완성도 |
-| P3 (선택) | 리액션, 답장, 타이핑 표시, 방 검색, 오픈채팅 닉네임, DND | 풍부한 경험 |
-| P4 (보너스) | 관리자 기능, /me 액션, 공동 방장, 마지막 접속 시간 | 완전한 제품 |
+| P2 (권장) | 커스터마이징(색상·GTK4 테마), 설정 창, 메시지 수정·삭제, 공지·핀 | 완성도 |
+| P3 (선택) | 답장, 타이핑 표시, 방 검색, 오픈채팅 닉네임, DND | 풍부한 경험 |
+| P4 (보너스) | /me 액션, 공동 방장, 마지막 접속 시간 | 완전한 제품 |

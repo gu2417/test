@@ -1,9 +1,10 @@
-# C Console Chat
+# C Chat Application
 
-> **C11 기반 콘솔 실시간 채팅 애플리케이션** — KakaoTalk · Google Chat 스타일의 TUI 채팅 시스템
+> **C11 기반 GTK4 GUI 실시간 채팅 애플리케이션** — KakaoTalk · Google Chat 스타일의 데스크탑 채팅 클라이언트
 
 [![Language](https://img.shields.io/badge/Language-C11-blue.svg)](https://en.cppreference.com/w/c/11)
-[![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20%7C%20macOS-lightgrey.svg)](#지원-플랫폼)
+[![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows-lightgrey.svg)](#지원-플랫폼)
+[![GUI](https://img.shields.io/badge/GUI-GTK4-blueviolet.svg)](#시스템-요구사항)
 [![Architecture](https://img.shields.io/badge/Architecture-TCP%20Server--Client-green.svg)](#시스템-아키텍처)
 [![Database](https://img.shields.io/badge/Database-MySQL%205.7%2B-orange.svg)](#데이터베이스)
 [![Version](https://img.shields.io/badge/Requirements-v2.0.0-informational.svg)](./requirements.md)
@@ -20,8 +21,8 @@
 6. [프로젝트 구조](#6-프로젝트-구조)
 7. [패킷 프로토콜](#7-패킷-프로토콜)
 8. [데이터베이스](#8-데이터베이스)
-9. [TUI 화면 구성](#9-tui-화면-구성)
-10. [슬래시 커맨드](#10-슬래시-커맨드)
+9. [GUI 화면 구성](#9-gui-화면-구성)
+10. [메뉴 및 버튼 구성](#10-메뉴-및-버튼-구성)
 11. [보안](#11-보안)
 12. [비기능 요구사항](#12-비기능-요구사항)
 13. [개발 로드맵](#13-개발-로드맵)
@@ -33,15 +34,15 @@
 
 ### 1-1. 소개
 
-**C Console Chat**은 C11로 작성된 경량 실시간 채팅 애플리케이션입니다. 카카오톡의 1:1 채팅·그룹 채팅·오픈채팅 개념과 Google Chat의 Space 개념을 **ANSI TUI(Text User Interface)** 로 구현합니다.
+**C Chat Application**은 C11과 GTK4로 작성된 데스크탑 실시간 채팅 애플리케이션입니다. 카카오톡의 1:1 채팅·그룹 채팅·오픈채팅 개념과 Google Chat의 Space 개념을 **GTK4 GUI** 로 구현합니다.
 
-모든 영속 데이터(유저·메시지·채팅방·친구 관계·설정)는 **MySQL**에 저장되며, 서버 재시작 후에도 완전히 복원됩니다. GUI 없이 터미널만으로 동작하므로, 저사양 환경이나 SSH 원격 접속 환경에서도 사용할 수 있습니다.
+모든 영속 데이터(유저·메시지·채팅방·친구 관계·설정)는 **MySQL**에 저장되며, 서버 재시작 후에도 완전히 복원됩니다. GTK4 기반 네이티브 창을 통해 직관적인 사용자 인터페이스를 제공합니다.
 
 ### 1-2. 대상 사용자
 
 - 소규모(≤100 동시 접속) 학습용·사내 커뮤니티 운영자
 - GUI가 제한되거나 CPU/메모리가 부족한 저사양 노트북 사용자
-- C 네트워크 프로그래밍·멀티스레딩·TUI 구현을 학습하는 개발자
+- C 네트워크 프로그래밍·멀티스레딩·GTK4 GUI 개발을 학습하는 개발자
 
 ### 1-3. 채팅방 유형
 
@@ -56,13 +57,13 @@
 **In-Scope (v2.0.0)**
 - TCP Server-Client 분리 구조, 멀티스레드 서버
 - MySQL 영속 저장 (유저·친구·방·메시지·리액션·설정)
-- 콘솔 TUI: 로그인·메인·채팅·마이페이지·설정 화면
-- 슬래시 커맨드 기반 입력
-- 크로스 플랫폼 빌드: **Linux · Windows(MinGW) · macOS**
+- GTK4 GUI: 로그인·메인·채팅·마이페이지·설정 창
+- 버튼·메뉴 기반 GUI 인터랙션
+- 크로스 플랫폼 빌드: **Linux · Windows(MinGW-w64 + GTK4)**
 - 보안 기본선: 비밀번호 SHA-256 해시, SQL Prepared Statement 강제
 
 **Out-of-Scope**
-- GUI/웹 클라이언트, 파일·이미지 전송, 음성·화상 통화
+- 웹 클라이언트, 파일·이미지 전송, 음성·화상 통화
 - TLS 암호화 전송 (평문 전송은 로컬 네트워크 한정)
 - 분산 서버·샤딩·로드밸런싱, 외부 푸시 알림 연동
 
@@ -178,30 +179,21 @@
 | FR-P05 | 프로필 수정 | 닉네임 · 상태메시지 인라인 수정 |
 | FR-P06 | 비밀번호 변경 | 현재 PW 확인 후 새 PW 설정 |
 
-### 2-10. 관리자 기능 (FR-ADM)
-
-| ID | 기능 | 설명 |
-|----|------|------|
-| FR-ADM01 | 전체 공지 | 서버 전체 접속 유저에게 공지 브로드캐스트 |
-| FR-ADM02 | 유저 강제 로그아웃 | 특정 유저 강제 접속 해제 |
-| FR-ADM03 | 서버 상태 조회 | 접속 인원 · 활성 채팅방 수 · DB 레코드 수 등 통계 |
-| FR-ADM04 | 유저 목록 조회 | 전체 가입 유저 목록 (온/오프라인 포함) |
-| FR-ADM05 | 채팅방 강제 삭제 | 특정 채팅방 강제 종료 및 삭제 |
-
 ---
 
 ## 3. 시스템 요구사항
 
 ### 3-1. 지원 플랫폼
 
-| 구분 | Linux (glibc) | Windows (MinGW-w64) | macOS (Darwin) |
-|------|:---:|:---:|:---:|
-| 서버 | ✅ | ✅ | ✅ |
-| 클라이언트 | ✅ | ✅ | ✅ |
-| 컴파일러 | gcc 9+ / clang 10+ | mingw-w64 gcc 8+ | Apple clang 13+ |
-| C 표준 | C11 | C11 | C11 |
-| 스레드 | `pthread` | `pthread-win32` | `pthread` |
-| 소켓 | `<sys/socket.h>` | `<winsock2.h>` + `ws2_32` | `<sys/socket.h>` |
+| 구분 | Linux (glibc) | Windows (MinGW-w64) |
+|------|:---:|:---:|
+| 서버 | ✅ | ✅ |
+| 클라이언트 | ✅ | ✅ |
+| 컴파일러 | gcc 9+ / clang 10+ | mingw-w64 gcc 8+ |
+| C 표준 | C11 | C11 |
+| 스레드 | `pthread` | `pthread-win32` |
+| 소켓 | `<sys/socket.h>` | `<winsock2.h>` + `ws2_32` |
+| GUI | GTK4 (`libgtk-4-dev`) | GTK4 (MSYS2 `mingw-w64-x86_64-gtk4`) |
 
 ### 3-2. 최소 사양 (클라이언트)
 
@@ -209,7 +201,7 @@
 |------|--------|
 | CPU | 듀얼코어 1.6GHz |
 | RAM | 2GB (OS 포함) — 클라이언트 자체 ≤20MB 상주 |
-| 터미널 | 80열 × 24행 |
+| 디스플레이 해상도 | 800×600 이상 |
 | 네트워크 | 1Mbps |
 
 > 서버는 MySQL 제외 **100MB 이하** 상주 (NFR-05).
@@ -220,6 +212,8 @@
 |--------|------|------|
 | MySQL | 5.7+ / 8.x | 영속 저장 |
 | libmysqlclient (C API) | MySQL 번들 | 서버측 DB 접근 |
+| GTK4 | 3.22+ | 클라이언트 GUI 프레임워크 |
+| GLib / GObject | GTK4 번들 | 이벤트 루프, g_idle_add() |
 | pthread | OS 번들 | 멀티스레딩 |
 | C11 런타임 | - | 공통 |
 
@@ -231,17 +225,12 @@
 
 **Ubuntu / Debian**
 ```bash
-sudo apt install build-essential libmysqlclient-dev
-```
-
-**macOS (Homebrew)**
-```bash
-brew install mysql-client
+sudo apt install build-essential libmysqlclient-dev libgtk-4-dev
 ```
 
 **Windows (MSYS2)**
 ```bash
-pacman -S mingw-w64-x86_64-gcc mingw-w64-x86_64-mysql-connector-c
+pacman -S mingw-w64-x86_64-gcc mingw-w64-x86_64-mysql-connector-c mingw-w64-x86_64-gtk4
 ```
 
 ### 4-2. 데이터베이스 초기화
@@ -289,15 +278,10 @@ make clean
 
 ### 4-5. 접속 예시
 
-```
-╔══════════════════════════════╗
-║     C Chat  v2.0             ║
-╠══════════════════════════════╣
-║  1. 로그인                   ║
-║  2. 회원가입                 ║
-║  0. 종료                     ║
-╚══════════════════════════════╝
-```
+GTK4 로그인 창이 열립니다:
+- 상단: 앱 제목 "C Chat v2.0" 레이블
+- 중단: ID 입력 필드, 비밀번호 입력 필드 (마스킹)
+- 하단: [로그인] 버튼, [회원가입] 버튼
 
 ---
 
@@ -328,13 +312,13 @@ make clean
                ▲  TCP Socket  ▼
 ┌──────────────────────────────────────────────────────────┐
 │                        CLIENT                            │
-│  ┌──────────────┐         ┌──────────────────────────┐  │
-│  │  Input Loop  │         │  Receive Thread          │  │
-│  │  (raw tty,   │         │  (socket → event queue)  │  │
-│  │   char-read) │         │                          │  │
-│  └──────────────┘         └──────────────────────────┘  │
+│  ┌──────────────────────┐   ┌──────────────────────────┐ │
+│  │  GTK Main Thread     │   │  Receive Thread          │ │
+│  │  (GtkApplication +   │   │  (socket → g_idle_add    │ │
+│  │   event loop)        │   │   → GTK main thread)     │ │
+│  └──────────────────────┘   └──────────────────────────┘ │
 │  ┌──────────────────────────────────────────────────┐    │
-│  │  TUI Renderer — ANSI 색상, 박스 드로잉            │    │
+│  │  GTK4 GUI — GtkWindow, GtkStack, GtkTextView     │    │
 │  │  Screen: LOGIN | MAIN | CHAT | MYPAGE | SETTINGS  │    │
 │  └──────────────────────────────────────────────────┘    │
 └──────────────────────────────────────────────────────────┘
@@ -367,18 +351,17 @@ Main Thread (listen + accept)
 
 | 스레드 | 역할 |
 |--------|------|
-| Main (UI) | 입력 읽기, 렌더, 화면 전환 |
-| Recv | 소켓 → 이벤트 큐 수신 |
+| Main (UI) | GTK 이벤트 루프 실행 (`g_application_run()`), 위젯 생성·업데이트 |
+| Recv | 소켓 수신 → `g_idle_add()`로 UI 업데이트 콜백 예약 |
 
-`send()`는 UI·Recv 양쪽에서 호출될 수 있으므로 `tx_mutex`로 보호합니다.
+`send()`는 Recv 스레드에서도 호출될 수 있으므로 `tx_mutex`로 보호합니다. GTK 위젯 업데이트는 반드시 `g_idle_add()` 또는 `g_main_context_invoke()`를 통해 GTK 메인 스레드에서만 수행합니다.
 
 ### 5-4. 시그널 처리
 
 | 시그널 | 서버 | 클라이언트 |
 |--------|------|-----------|
 | `SIGPIPE` | `SIG_IGN` | `SIG_IGN` |
-| `SIGINT` / `SIGTERM` | 플래그 set → accept 중단 → 모든 세션 close → exit | 소켓 close → raw-mode off → exit |
-| `SIGWINCH` | — | 화면 크기 재조회 후 재렌더 |
+| `SIGINT` / `SIGTERM` | 플래그 set → accept 중단 → 모든 세션 close → exit | 소켓 close → GTK 종료 → exit |
 
 ---
 
@@ -403,16 +386,13 @@ C_ChatProgram/
 │   └── admin.c / admin.h   # 관리자 명령 처리
 │
 ├── client/
-│   ├── main.c              # 클라이언트 진입점, 화면 라우팅
+│   ├── main.c              # GTK 앱 진입점, gtk_application_new, g_signal_connect
 │   ├── state.h / state.c   # 전역 클라이언트 상태 (소켓, 현재 화면, 설정)
 │   ├── net.c / net.h       # 소켓 연결, recv 스레드, send 함수
-│   ├── ui.c / ui.h         # ANSI 색상 매크로, 박스 드로잉 헬퍼
-│   ├── console.h           # 플랫폼별 raw-mode / getch 추상화
-│   ├── input.c / input.h   # 슬래시 커맨드 파서, char-by-char 입력 루프
-│   ├── notify.c / notify.h # 알림 배너 큐, 출력 처리
-│   ├── screen_login.c/h    # 로그인·회원가입 화면
-│   ├── screen_main.c/h     # 메인(친구·채팅 목록) 화면
-│   ├── screen_chat.c/h     # 채팅방 화면
+│   ├── app_window.c/h      # GtkApplicationWindow 생성 및 관리
+│   ├── screen_login.c/h    # 로그인·회원가입 화면 (GtkGrid 기반)
+│   ├── screen_main.c/h     # 메인(친구·채팅 목록) 화면 (GtkPaned, GtkListBox)
+│   ├── screen_chat.c/h     # 채팅방 화면 (GtkTextView, GtkEntry)
 │   ├── screen_mypage.c/h   # 마이페이지 화면
 │   └── screen_settings.c/h # 설정 화면
 │
@@ -425,7 +405,7 @@ C_ChatProgram/
 │   └── schema.sql          # DB 생성·테이블 DDL, 관리자 계정 초기 데이터
 │
 ├── docs/                   # 설계 문서 (10개 섹션)
-├── Makefile                # Linux · macOS · MinGW 통합 빌드
+├── Makefile                # Linux · Windows(MinGW-w64) 통합 빌드
 ├── requirements.md         # 요구사항 명세 v2.0.0
 └── README.md               # 이 문서
 ```
@@ -436,7 +416,7 @@ C_ChatProgram/
 |--------|----------|------|------|
 | 공통 | `common/` | 패킷 타입 상수 · 공용 구조체 · 유틸리티 · 플랫폼 소켓 호환 | 표준 C, 플랫폼 네트워크 헤더 |
 | 서버 | `server/` | TCP listen · 멀티스레드 핸들러 · 기능 처리 · MySQL 접근 | `common/`, pthread, libmysqlclient |
-| 클라이언트 | `client/` | 콘솔 TUI · send/recv 스레드 · 슬래시 커맨드 | `common/`, pthread |
+| 클라이언트 | `client/` | GTK4 GUI · send/recv 스레드 · 패킷 처리 | `common/`, pthread, libgtk-4 |
 | DB 스키마 | `sql/` | 초기화 SQL | (없음) |
 
 ---
@@ -750,151 +730,97 @@ extern pthread_mutex_t g_sessions_mutex;
 
 ---
 
-## 9. TUI 화면 구성
+## 9. GUI 화면 구성
 
-### 9-1. 로그인 화면
+### 9-1. 로그인 화면 (LoginWindow)
 
-```
-╔══════════════════════════════╗
-║     C Chat  v2.0             ║
-╠══════════════════════════════╣
-║  1. 로그인                   ║
-║  2. 회원가입                 ║
-║  0. 종료                     ║
-╚══════════════════════════════╝
-```
+GTK4 `GtkWindow` 기반 로그인 창:
+- **레이아웃**: `GtkBox` (vertical) — 타이틀 라벨, ID 입력란(`GtkEntry`), 비밀번호 입력란(`GtkEntry`, visibility=FALSE), [로그인] 버튼, [회원가입] 버튼
+- **인터랙션**: [로그인] 버튼 클릭 또는 Enter → `LOGIN_REQ` 패킷 전송 → 응답에 따라 메인 창으로 전환 또는 오류 메시지 표시(`GtkRevealer`)
+- **회원가입**: 별도 `GtkWindow` (모달) 또는 같은 창 내 `GtkStack` 전환으로 ID·비밀번호·닉네임·상태메시지 입력
 
-### 9-2. 메인 화면 (탭 구조)
+### 9-2. 메인 화면 (MainWindow)
 
-```
-╔══════════════════════════════════════════════╗
-║  [친구목록] [채팅] [오픈채팅] [마이페이지]   ║
-╠══════════════════════════════════════════════╣
-║  친구 목록 (3/5 온라인)                      ║
-║  ──────────────────────────────────          ║
-║  [ON]  홍길동    — 오늘도 화이팅             ║
-║  [ON]  김철수    — 점심 뭐 먹지              ║
-║  [바쁨] 이영희   — 공부중                    ║
-║  [OFF] 박민준   (마지막 접속: 2시간 전)      ║
-╠══════════════════════════════════════════════╣
-║  > 명령 입력 (/help 도움말)                  ║
-╚══════════════════════════════════════════════╝
-```
+`GtkApplicationWindow` 내 `GtkPaned` (좌측 패널 + 우측 콘텐츠):
+- **좌측 패널** (`GtkNotebook` 또는 `GtkStackSidebar`):
+  - 친구 목록 탭: `GtkListBox` — 각 행에 닉네임, 상태 아이콘(●), 상태메시지 표시
+  - 채팅 목록 탭: `GtkListBox` — 방 이름, 마지막 메시지 미리보기, 미읽 배지
+  - 오픈채팅 탭: `GtkListBox` — 오픈채팅방 목록 + 검색 `GtkEntry`
+  - 마이페이지 탭: 프로필 정보 및 통계
+- **우측 상단**: 친구 추가(`GtkButton`), 방 만들기(`GtkButton`), 내 프로필 버튼
+- **알림 배너**: `GtkRevealer` 또는 커스텀 오버레이 위젯 (친구 요청, 멘션)
 
-### 9-3. 채팅 화면
+### 9-3. 채팅 화면 (ChatWindow or GtkStack 내 페이지)
 
-```
-╔══════════════════════════════════════════════╗
-║  # 컴공 스터디그룹  (12/30명)  [공지: 과제!] ║
-║  📌 핀: "오늘 자정까지 제출"                ║
-╠══════════════════════════════════════════════╣
-║  [14:02] 홍길동: 과제 다들 했어?            ║
-║  [14:03]  ↩ 홍길동에게: ㄴㄴ 지금 시작...   ║
-║  [14:03] 시스템: 이영희 님이 입장했습니다.  ║
-║  [14:04] 이영희: 안녕하세요!                ║
-║          👍 2  ❤ 1                          ║
-║  [14:05] @이영희 홍길동: 방금 입장했군요    ║
-║  [14:06] 나(홍길동): 반가워요      [읽음]   ║
-║  홍길동 님이 입력 중...                      ║
-╠══════════════════════════════════════════════╣
-║  > 메시지 입력 (/help 명령어 목록)           ║
-╚══════════════════════════════════════════════╝
-```
+- **상단 헤더바** (`GtkHeaderBar`): 방 이름, 인원 수, 공지사항 버튼, 멤버 목록 버튼, 검색 버튼
+- **메시지 영역** (`GtkScrolledWindow` + `GtkTextView` 또는 `GtkListBox`):
+  - 각 메시지: 닉네임, 내용, 타임스탬프, 읽음 수 표시
+  - 내 메시지는 우측 정렬, 상대 메시지는 좌측 정렬
+  - 답장 메시지: 인용 블록(`GtkFrame` 또는 `GtkBox` 강조) 포함
+  - 시스템 메시지: 중앙 정렬, 회색 텍스트
+  - 타이핑 표시: 하단에 "홍길동 님이 입력 중..." 레이블 표시/숨김
+- **입력 영역** (`GtkBox` horizontal): `GtkEntry` (메시지 입력) + [전송] `GtkButton`
+  - Enter 또는 [전송] 클릭 → `ROOM_MSG` 패킷 전송
+- **컨텍스트 메뉴** (우클릭 또는 더보기 버튼): 답장, 수정, 삭제, 귓속말, 검색 메뉴 항목
 
 ### 9-4. 마이페이지 화면
 
-```
-╔══════════════════════════════════════════════╗
-║  ★ 마이페이지                               ║
-╠══════════════════════════════════════════════╣
-║  ID       : hong123                          ║
-║  닉네임   : 홍길동                           ║
-║  상태     : [ON] 오늘도 화이팅               ║
-║  가입일   : 2026-01-15                       ║
-║  마지막   : 방금 전                          ║
-║  ──────────────────────────────────          ║
-║  총 메시지: 1,243 개                         ║
-║  참여 방  : 5 개                             ║
-║  친구 수  : 12 명                            ║
-╠══════════════════════════════════════════════╣
-║  1. 프로필 수정   2. 비밀번호 변경           ║
-║  3. 설정          0. 돌아가기                ║
-╚══════════════════════════════════════════════╝
-```
+`GtkGrid` 기반 프로필 정보 표시:
+- 프로필 영역: ID, 닉네임, 상태메시지, 가입일, 마지막 접속 시간
+- 통계: 총 메시지 수, 참여 방 수, 친구 수 (레이블로 표시)
+- [프로필 수정] 버튼 → `GtkWindow` (모달 팝업, 닉네임·상태메시지 수정)
+- [비밀번호 변경] 버튼 → `GtkWindow` (모달 팝업)
 
 ### 9-5. 설정 화면
 
-```
-╔══════════════════════════════════════════════╗
-║  ⚙  설정                                    ║
-╠══════════════════════════════════════════════╣
-║  1. 내 메시지 색상  : [cyan   ] ▶            ║
-║  2. 닉네임 색상     : [yellow ] ▶            ║
-║  3. 테마            : [dark   ] ▶            ║
-║  4. 타임스탬프 형식 : [HH:MM  ] ▶            ║
-║  5. DND 모드        : [OFF    ] ▶            ║
-║  0. 돌아가기                                 ║
-╚══════════════════════════════════════════════╝
-```
+`GtkListBox` 기반 설정 항목:
+- 테마: `GtkDropDown` (dark / light)
+- 타임스탬프 형식: `GtkDropDown` (HH:MM / HH:MM:SS / MM-DD HH:MM)
+- 온라인 상태: `GtkDropDown` (online / busy / invisible)
+- 각 설정 변경 시 즉시 `PROFILE_UPDATE` 패킷 전송 또는 로컬 저장
 
 ---
 
-## 10. 슬래시 커맨드
+## 10. 메뉴 및 버튼 구성
 
-모든 명령은 `/`로 시작하며 대소문자를 구분하지 않습니다.
+GUI 기반으로 슬래시 커맨드 대신 버튼, 메뉴, 다이얼로그를 통해 모든 기능을 수행합니다.
 
-### 10-1. 채팅방 내 명령어
+### 10-1. 채팅방 내 액션
 
-| 명령어 | 권한 | 설명 |
-|--------|------|------|
-| `/help` | 모두 | 현재 화면 사용 가능 명령어 목록 출력 |
-| `/w <닉네임> <내용>` | 멤버 | 귓속말 전송 |
-| `/del <msg_id>` | 본인/관리자 | 메시지 삭제 (`삭제된 메시지` 표시) |
-| `/edit <msg_id> <내용>` | 본인 | 메시지 수정 (5분 이내, `(수정됨)` 표시) |
-| `/reply <msg_id> <내용>` | 멤버 | 특정 메시지에 답장 |
-| `/react <msg_id> <이모지>` | 멤버 | 메시지 리액션 추가/취소 (토글) |
-| `/pin <msg_id>` | 방장/방 관리자 | 방 상단에 메시지 고정 (`msg_id=0`으로 해제) |
-| `/search <키워드>` | 멤버 | 현재 방 메시지 전문 검색 |
-| `/invite <id>` | 멤버 | 현재 방에 친구 초대 |
-| `/kick <닉네임>` | 방장/방 관리자 | 멤버 강퇴 |
-| `/notice <내용>` | 방장/방 관리자 | 공지 등록 (빈 문자열로 해제) |
-| `/grant <닉네임>` | 방장 | 공동 방장 권한 부여 |
-| `/revoke <닉네임>` | 방장 | 공동 방장 권한 해제 |
-| `/members` | 멤버 | 현재 방 멤버 목록 및 온라인 상태 조회 |
-| `/mute` | 멤버 | 현재 방 알림 무음 토글 |
-| `/leave` | 멤버 | 채팅방 나가기 |
-| `/me <동작>` | 멤버 | 액션 메시지 전송 (예: `* 홍길동 손을 흔든다`) |
-| `/open_nick <닉네임>` | 멤버 | 오픈채팅방 전용 닉네임 설정 |
+| 기능 | UI 요소 | 설명 |
+|------|---------|------|
+| 메시지 전송 | `GtkEntry` + [전송] 버튼 | Enter 또는 버튼 클릭 |
+| 귓속말 | 메시지 우클릭 → "귓속말" 메뉴 | 대상 선택 후 내용 입력 다이얼로그 |
+| 메시지 삭제 | 메시지 우클릭 → "삭제" 메뉴 | 본인 메시지만, 확인 다이얼로그 표시 |
+| 메시지 수정 | 메시지 우클릭 → "수정" 메뉴 | 전송 후 5분 이내, 인라인 편집 |
+| 답장 | 메시지 우클릭 → "답장" 메뉴 | 인용 표시 후 입력창 포커스 |
+| 메시지 검색 | 헤더바 검색 버튼 클릭 | `GtkSearchBar` 슬라이드 다운 |
+| 멤버 목록 | 헤더바 멤버 버튼 클릭 | `GtkPopover` 또는 사이드 패널 |
+| 공지 등록 | 헤더바 더보기 버튼 → "공지 등록" | 방장만 활성화, 입력 다이얼로그 |
+| 방 나가기 | 헤더바 더보기 버튼 → "나가기" | 확인 다이얼로그 표시 |
+| 멘션(@) | 입력창에 `@` 입력 → 자동완성 팝업 | `GtkPopover`로 멤버 목록 표시 |
+| 타이핑 표시 | 자동 (입력창 포커스/입력 시 전송) | 별도 사용자 조작 불필요 |
 
-### 10-2. 메인 화면 명령어
+### 10-2. 메인 화면 액션
 
-| 명령어 | 설명 |
-|--------|------|
-| `/friend add <id>` | 친구 추가 요청 |
-| `/friend list` | 친구 목록 조회 |
-| `/friend accept <id>` | 친구 요청 수락 |
-| `/friend reject <id>` | 친구 요청 거절 |
-| `/friend del <id>` | 친구 삭제 |
-| `/friend block <id>` | 친구 차단 |
-| `/find <keyword>` | 유저/닉네임 검색 |
-| `/rooms [open\|group]` | 채팅방 목록 조회 |
-| `/room create <name>` | 그룹 채팅방 생성 |
-| `/open create <name>` | 오픈채팅방 생성 |
-| `/room search <키워드>` | 채팅방 이름/주제 검색 |
-| `/join <room_id> [pw]` | 채팅방 참여 |
-| `/dm <id>` | 1:1 DM 시작 |
+| 기능 | UI 요소 | 설명 |
+|------|---------|------|
+| 친구 추가 | 친구 탭 상단 [+] 버튼 | ID 입력 다이얼로그 |
+| 친구 요청 수락/거절 | 알림 배너 또는 친구 탭 요청 목록 | 수락/거절 버튼 |
+| 친구 삭제/차단 | 친구 항목 우클릭 → 컨텍스트 메뉴 | 확인 다이얼로그 표시 |
+| DM 시작 | 친구 항목 더블클릭 또는 "메시지" 버튼 | 채팅 화면으로 전환 |
+| 그룹 채팅 생성 | 채팅 탭 상단 [+] 버튼 | 방 이름·주제·최대인원 입력 다이얼로그 |
+| 오픈채팅 참여 | 오픈채팅 탭 → 방 선택 → [참여] 버튼 | 비밀번호 방이면 입력 다이얼로그 |
+| 유저 검색 | 친구 탭 상단 검색 `GtkEntry` | 실시간 필터링 |
 
-### 10-3. 전역 명령어
+### 10-3. 전역 동작
 
-| 명령어 | 설명 |
-|--------|------|
-| `/status <online\|busy\|invisible>` | 내 온라인 상태 변경 |
-| `/dnd` | DND 모드 토글 (멘션은 항상 수신) |
-| `/mypage` | 마이페이지 화면으로 이동 |
-| `/settings` | 설정 화면으로 이동 |
-| `/profile <닉네임> <상태메시지>` | 프로필 수정 |
-| `/admin <sub> <args>` | 관리자 명령 (`broadcast`/`kick`/`stat`/`users`/`delroom`) |
-| `/quit` | 로그아웃 및 종료 |
+| 기능 | UI 요소 | 설명 |
+|------|---------|------|
+| 온라인 상태 변경 | 하단 상태바 또는 마이페이지 `GtkDropDown` | online / busy / invisible |
+| 마이페이지 | 좌측 패널 프로필 아이콘 클릭 | 마이페이지 탭으로 전환 |
+| 설정 | 헤더바 설정(⚙) 버튼 | 설정 탭 또는 다이얼로그 |
+| 로그아웃 | 헤더바 메뉴 → "로그아웃" | `LOGOUT_REQ` 전송 후 로그인 창으로 전환 |
 
 ---
 
@@ -943,8 +869,8 @@ extern pthread_mutex_t g_sessions_mutex;
 | NFR-03 | 안정성 | 크래시 없음 | `SIGPIPE` 무시, recv 0/에러 시 세션만 정리, 스레드 detach |
 | NFR-04 | 보안 | SHA-256 해시 | MySQL `SHA2()`, 평문 전송은 로컬 환경 한정 |
 | NFR-05 | 경량성 | 서버 ≤100MB | 정적 세션 배열, 메시지 히스토리는 DB에 위임 |
-| NFR-06 | 이식성 | Linux · Windows · macOS | 플랫폼 분기를 `console.h`와 `net_compat.h`에 집중 |
-| NFR-07 | 확장성 | GUI 레이어 교체 가능 | `net` 계층과 `ui` 계층 분리, `net`은 화면을 알지 못함 |
+| NFR-06 | 이식성 | Linux · Windows | 플랫폼 분기를 `net_compat.h`에 집중, GUI는 GTK4로 통일 |
+| NFR-07 | GTK4 GUI | GTK4 GUI | `net` 계층과 GTK4 `ui` 계층 분리, 수신 스레드는 `g_idle_add()`로만 UI 접근 |
 | NFR-08 | 영속성 | 재시작 후 데이터 유지 | 세션 외 모든 상태를 MySQL에 영속 저장 |
 | NFR-09 | 스레드 안전 | mutex 보호 | 세션 배열 `g_sessions_mutex`, DB 연결 스레드 전용 |
 
@@ -956,10 +882,10 @@ extern pthread_mutex_t g_sessions_mutex;
 
 > **완료 기준**: 서버 실행 → 2 클라이언트 동시 접속 → 같은 방에서 메시지 교환
 
-- 빌드 시스템 (Makefile, Linux/macOS/Windows)
+- 빌드 시스템 (Makefile, Linux/Windows)
 - `common/` 레이어: `protocol.h`, `types.h`, `utils.c`
 - 서버 accept + thread-per-client 뼈대
-- 클라이언트 send/recv thread + 기본 TUI (raw 모드)
+- 클라이언트 send/recv thread + GTK4 기본 창 (`GtkApplicationWindow` + `GtkStack`)
 - DB 스키마 적용, `db_connect` / Prepared Statement 헬퍼
 - **FR-A01, A02, A03** 회원가입·로그인·로그아웃
 - **FR-G01, G03** 그룹방 생성·일반 메시지 전송
@@ -996,7 +922,6 @@ extern pthread_mutex_t g_sessions_mutex;
 - BAN 테이블, rate-limit, FULLTEXT 검색
 - 세션별 Prepared Statement 캐시
 - DM 다중행 메시지
-- GUI 클라이언트
 - TLS 암호화 전송
 - 자동 재접속 시 인증 복원 (토큰)
 

@@ -1,274 +1,290 @@
 # 채팅 화면
 
-KakaoTalk PC 2025 의 **좌/우 정렬 말풍선** + Google Chat 의 **발신자 그룹핑** 결합.
-테두리·선 최소화, 여백과 정렬로 구조를 만든다.
+KakaoTalk PC 스타일의 **좌/우 정렬 말풍선** + 발신자 그룹핑을 GTK4으로 구현.
+`GtkApplicationWindow`의 GtkStack 내 `chat-page`로 표시되며, 방 선택 시 활성화된다.
 
 ---
 
-## 1. 와이어프레임 (100×30, 그룹방)
+## 1. 채팅 페이지 전체 구조 (GtkStack 자식)
 
 ```
-╭──────────────────────────────────────────────────────────────────────────────────────╮
-│ ←  # 컴공 스터디그룹   ● 12/30              ◈ 오늘 자정까지 제출             ⌕  ⋯  │
-╰──────────────────────────────────────────────────────────────────────────────────────╯
-
-              ─────────────   2026. 4. 20 (월)   ─────────────
-
-
-  ╭──╮
-  │홍│  홍길동
-  ╰──╯  과제 다들 했어?                                           1
-                                                                14:02
-
-
-                                                       2   ㄴㄴ 지금 시작...
-                                                     14:03
-
-
-              ─────  이영희 님이 입장했습니다 · 14:03  ─────
-
-
-  ╭──╮
-  │이│  이영희
-  ╰──╯  안녕하세요!
-        반갑습니다 :)                                             1
-         👍 2   ❤ 1                                             14:04
-
-
-  ╭──╮
-  │홍│  홍길동  →  @이영희
-  ╰──╯  ┊ 과제 다들 했어?                           ← 답장 프리뷰
-        방금 입장했군요                                           1
-                                                                14:05
-
-
-                                                           반가워요
-                                                     14:06
-
-
-  홍길동 입력중  · · ·
-╭──────────────────────────────────────────────────────────────────────────────────────╮
-│ ▌ 메시지 입력                                                /help         ⏎ 전송    │
-╰──────────────────────────────────────────────────────────────────────────────────────╯
+GtkBox (vertical)                         — chat-page 루트
+  GtkHeaderBar                            — 채팅방 헤더바 (채팅 진입 시 교체)
+  GtkRevealer (공지/핀 바, initially hidden)
+  GtkScrolledWindow                       — 메시지 영역
+    GtkListBox (css: message-list)        — 메시지 목록
+  GtkLabel (css: typing-indicator)        — 타이핑 표시 (initially hidden)
+  GtkBox (horizontal, css: input-area)    — 입력 영역
+    GtkEntry (css: message-entry)
+    GtkButton "전송" (css: suggested-action)
 ```
 
 ---
 
-## 2. 영역
+## 2. GtkHeaderBar (채팅방 전용)
 
-| 영역 | 행 | 비고 |
-|------|----|------|
-| TopBar | 3 | 뒤로·제목·멤버수·핀 요약·우측 액션 |
-| PinNoticeBar | 0~1 | 핀/공지 있을 때만 1행 추가 |
-| 메시지 뷰 | 가변 (H − 고정 영역) | 스크롤 영역(DECSTBM) |
-| TypingIndicator | 1 | 없으면 공행 |
-| Composer | 3 | 전역 공통 |
+채팅방 진입 시 메인 윈도우의 GtkHeaderBar를 채팅방 전용으로 교체:
+
+```
+GtkHeaderBar
+  [좌]  GtkButton "←" (뒤로 가기, icon: go-previous-symbolic)
+  title: 방 이름 GtkLabel
+  subtitle: "멤버 12명" GtkLabel  (DM: "● 온라인" / "● 오프라인")
+  [우]  GtkButton (공지, icon: pin-symbolic)        — 그룹방만
+        GtkButton (검색, icon: system-search-symbolic)
+        GtkButton (멤버, icon: system-users-symbolic) — 그룹방만
+        GtkMenuButton (더보기, icon: view-more-symbolic)
+          → GtkPopoverMenu
+```
+
+**더보기 GtkPopoverMenu 항목:**
+
+| 항목 | 표시 조건 |
+|------|----------|
+| 멤버 목록 | 그룹방 |
+| 방 검색 | 항상 |
+| 공지 설정 | 방장/관리자 전용 |
+| 핀 메시지 설정 | 방장/관리자 전용 |
+| 오픈채팅 닉네임 | 오픈채팅 전용 |
+| 알림 무음 | 항상 |
+| 채팅방 나가기 | 항상 |
+
+**DM 모드 차이:**
+- 방 이름 대신 상대방 닉네임 + 상태 표시 GtkLabel.
+- 공지/핀 버튼, 멤버 버튼 숨김.
+- 더보기 메뉴: DM 차단, 친구 삭제, 알림 무음만 표시.
 
 ---
 
-## 3. 정렬 규칙
+## 3. 공지/핀 GtkRevealer
 
-- **상대 메시지**: 좌측 컬럼 2~70. `╭─╮ / │ X │ / ╰─╯` 아바타 + 닉 헤더 + 본문.
-  시간·미읽음 수는 본문 **마지막 줄의 우측 바깥**에 세로 스택(숫자 위 / 시간 아래).
-- **내 메시지**: 우측 정렬 (컬럼 30~90). 아바타·닉 헤더 생략.
-  시간·미읽음 수는 본문 **마지막 줄의 좌측 바깥**에 세로 스택(숫자 위 / 시간 아래).
-- **시스템 메시지**: 중앙 정렬, `fg.tertiary`, 짧은 dash 로 감싼 칩.
-- **날짜 구분**: 중앙 정렬, `─── YYYY. M. D (요일) ───`.
+```
+GtkRevealer
+  GtkBox (horizontal, css: notice-bar)
+    GtkLabel "◈ 오늘 자정까지 제출"   [hexpand=TRUE]
+    GtkButton "전체 보기"             (공지 전문 표시)
+```
+
+- `gtk_revealer_set_reveal_child(revealer, FALSE)` 로 숨김.
+- 공지(`notice`)와 핀 메시지(`pinned_msg`) 둘 다 있으면 공지 우선.
+- 공지 없으면 `gtk_revealer_set_reveal_child(notice_revealer, FALSE)`.
 
 ---
 
-## 4. 그룹핑
-
-- 같은 발신자의 연속 메시지가 **180초 이내** → 두 번째부터 아바타·닉 헤더 생략. 본문만 이어짐.
-- 다른 발신자가 끼어들거나 3분 초과 → 새 그룹.
-- 시간·미읽음 수 스택은 **마지막 메시지에만** 표시. 그룹 중간 메시지는 숫자·시간 모두 생략.
-
----
-
-## 5. 메시지 장식
-
-| 상황 | 표현 |
-|------|------|
-| `msg_type=1` system | 가운데 정렬 dash 칩 |
-| `msg_type=2` whisper | 본문 앞 `✉ 귓속말 →` + `accent.primary`. 발신·수신 양측만 표시 |
-| `msg_type=3` me | `✦ 홍길동 춤춘다` 중앙 정렬 + italic (dim fallback) |
-| `reply_to` 존재 | 본문 위에 세로선 `┊` + 원문 1줄 미리보기(최대 40자 · `fg.tertiary`) |
-| `edited_at` | 시간 옆에 ` · 수정됨` `fg.tertiary` |
-| `is_deleted=1` | 본문 자리에 `(삭제된 메시지)` italic + `fg.tertiary` |
-| `@mention` 포함 | 멘션 토큰만 `accent.primary` bold. 나를 멘션한 메시지의 아바타 옆에 `▌` |
-
-### 귓속말 레이아웃
+## 4. 메시지 목록 (GtkListBox)
 
 ```
- ✉ 귓속말 →  이건 나만 보이는 메시지야                       14:08
+GtkScrolledWindow (vscrollbar-policy=GTK_POLICY_AUTOMATIC)
+  GtkListBox (selection-mode=NONE, css: message-list)
+    GtkListBoxRow  — DateSeparator ("2026년 4월 20일 월요일")
+    GtkListBoxRow  — MessageBubble (상대방 메시지, 좌측 정렬)
+    GtkListBoxRow  — MessageBubble (내 메시지, 우측 정렬)
+    GtkListBoxRow  — SystemMessage (시스템 메시지, 중앙)
+    ...
 ```
 
-- 좌측 정렬, 아바타 없음. `accent.primary` 전체 적용.
-- 같은 방의 다른 멤버 화면에는 표시되지 않음.
-
-### me-action 레이아웃
+### 4-1. 상대방 메시지 (MessageBubble, 좌측 정렬)
 
 ```
-               ✦ 홍길동 손을 흔든다                            14:09
+GtkBox (horizontal, halign=GTK_ALIGN_START, spacing=8, margin-start=8)
+  GtkLabel (이니셜, css: avatar-label)       — 그룹핑 첫 메시지만 표시
+  GtkBox (vertical, spacing=2)
+    GtkLabel (닉네임, css: sender-name)      — 그룹핑 첫 메시지만 표시
+    GtkBox (horizontal, spacing=4)
+      GtkLabel (메시지 내용, css: bubble-other, wrap=TRUE)
+      GtkBox (vertical, css: message-meta)
+        GtkLabel (미읽음 수, css: unread-count accent) — 0이면 숨김
+        GtkLabel (시간, css: timestamp dim-label)
+    GtkBox (horizontal, css: reaction-strip)   — 리액션 있을 때만
+      GtkButton "👍 2" ...
 ```
 
-- 중앙 정렬, `fg.secondary` + italic. 시간은 우측.
-- 읽음 카운터 없음.
-
----
-
-## 6. 읽음 표시 (KakaoTalk 스타일 숫자 카운터)
-
-그룹방·DM 공통. **읽지 않은 참여자 수**를 숫자로 표기한다.
-
-- **계산식**: `unread = member_count − read_count − 1(발신자 본인 제외)`
-  - DM: `unread ∈ {0, 1}` → 1 이면 상대 미확인, 0 이면 읽음.
-  - 그룹방: `1 ≤ unread ≤ N` 실시간 감소.
-- **배치**: 시간 스택의 **윗 줄**. 시간과 같은 컬럼.
-  - 상대 메시지: 본문 마지막 줄 **우측 바깥** (컬럼 ≈ body_end + 2).
-  - 내 메시지: 본문 마지막 줄 **좌측 바깥** (컬럼 ≈ body_start − 4).
-- **스타일**: `accent.primary` + bold. `99+` 클램프. `0` 은 공백(시간만 표시).
-- **숨김 규칙**:
-  - `unread == 0` → 숫자 줄 공백 렌더(시간만 표시, 레이아웃 유지).
-  - system / me / whisper 메시지 → 숫자·시간 모두 생략.
-  - 그룹 중간 메시지(마지막이 아닌) → 생략.
-- **실시간 갱신**: `DM_READ_NOTIFY` 수신 시 해당 `msg_id` 숫자 감산 재렌더. 100ms 디바운스.
-
-예시:
-```
-  ╭──╮
-  │홍│  홍길동
-  ╰──╯  과제 다들 했어?                                           3     ← 3명 미확인
-                                                                14:02
-
-                                                       0   반가워요      ← 전원 읽음
-                                                     14:06
-```
-
----
-
-## 7. ReactionStrip
-
-`components.md#13-reactionstrip`. 본문 왼쪽 들여쓰기 맞춤. 내가 누른 이모지는 inverse.
-
----
-
-## 8. 스크롤 · 히스토리
-
-- 용량: `CHAT_VIEW_CAP=200` (링버퍼). 위로 스크롤 중 상단 1행에:
-  ```
-              ↑  위로 더 불러오려면 Ctrl+U                ●  N 새 메시지
-  ```
-  `N 새 메시지` 칩은 맨 아래가 아닐 때만 표시, `Enter` = 맨 아래로 점프.
-- `Ctrl+U` 로 과거 메시지 추가 요청 중에는 상단 로딩 스피너 표시.
-
----
-
-## 9. 멤버 목록 오버레이 (`/members`)
-
-`/members` 또는 `⋯ → 멤버 목록` 으로 우측 패널 슬라이드. `components.md#16`.
+### 4-2. 내 메시지 (MessageBubble, 우측 정렬)
 
 ```
-╭──────────────────────────────────╮  ╭────────────────────────╮
-│  메시지 뷰 (폭 축소)             │  │  멤버  12         ×   │
-│                                  │  ├────────────────────────┤
-│                                  │  │  방장                  │
-│  [14:02] 홍길동: 과제...         │  │  ╭──╮                  │
-│                                  │  │  │홍│  홍길동  ★      │
-│                                  │  │  ╰──╯  ● online        │
-│  ...                             │  │                        │
-╰──────────────────────────────────╯  ╰────────────────────────╯
+GtkBox (horizontal, halign=GTK_ALIGN_END, spacing=8, margin-end=8)
+  GtkBox (vertical, css: message-meta, halign=END)
+    GtkLabel (미읽음 수, css: unread-count accent) — 0이면 숨김
+    GtkLabel (시간, css: timestamp dim-label)
+  GtkLabel (메시지 내용, css: bubble-self, wrap=TRUE)
 ```
 
-- 메시지 뷰 폭이 우측 패널(30열) 만큼 줄어듦.
-- `Esc` 또는 `×` 로 닫힘, 메시지 뷰 원래 폭 복귀.
-
----
-
-## 10. 메시지 검색 오버레이 (`/search`)
-
-`/search <keyword>` 로 TopBar 아래 오버레이. `components.md#17`.
+### 4-3. 답장 메시지 (reply_to 존재)
 
 ```
-╭──────────────────────────────────────────────────────────────────────────────────────╮
-│ ←  # 컴공 스터디그룹   ● 12/30                                              ⌕  ⋯  │
-╰──────────────────────────────────────────────────────────────────────────────────────╯
-╭──────────────────────────────────────────────────────────────────────────────────────╮
-│  ⌕  과제 ▌                                              결과 3개   ↑  ↓   ×      │
-╰──────────────────────────────────────────────────────────────────────────────────────╯
+GtkBox (vertical, spacing=2)
+  GtkFrame (css: reply-quote)           — 인용 원문
+    GtkLabel (원문 1줄 미리보기, css: dim-label, max 40자)
+  GtkLabel (답장 내용, css: bubble-other 또는 bubble-self)
+```
 
-   [14:00]  홍길동:  "과제" 다들 했어?
-   [13:55]  김철수:  "과제"가 뭔지도 모르겠어...
-   [12:10]  이영희:  "과제" 제출 완료했어!
+### 4-4. 시스템 메시지
+
+```
+GtkListBoxRow (css: system-message-row)
+  GtkLabel (내용, css: system-message, halign=CENTER)
+  — 예: "이영희 님이 입장했습니다"
+  — 예: "홍길동 님이 닉네임을 '개발자A'로 변경했습니다"
+```
+
+- CSS: `color: @fg_tertiary; font-size: 12px;`
+
+### 4-5. 날짜 구분
+
+```
+GtkListBoxRow (css: date-separator-row)
+  GtkBox (horizontal)
+    GtkSeparator [hexpand=TRUE]
+    GtkLabel "2026년 4월 20일 월요일" (css: date-label)
+    GtkSeparator [hexpand=TRUE]
 ```
 
 ---
 
-## 11. 오픈채팅 전용 요소
+## 5. 메시지 장식 변형
 
-### TopBar 차이
+| 상황 | GTK4 표현 |
+|------|-----------|
+| `msg_type=2` 귓속말 | `bubble-whisper` CSS class + 왼쪽 아이콘 `mail-symbolic`. 발신·수신자만 표시. |
+| `msg_type=3` me-action | `GtkLabel` `halign=CENTER`, CSS class `me-action` (이탤릭, dim 색상) |
+| `reply_to` 존재 | `GtkFrame` (css: reply-quote) + 원문 1줄 미리보기 |
+| `edited_at` 존재 | 시간 GtkLabel 뒤에 `"· 수정됨"` 추가 (css: dim-label) |
+| `is_deleted=1` | 메시지 내용 GtkLabel에 `"(삭제된 메시지)"` + CSS class `deleted-message` |
+| `@mention` 포함 | `gtk_label_set_markup()`으로 멘션 토큰에 `<span color="...">@닉네임</span>` 적용 |
+
+---
+
+## 6. 읽음 카운터
+
+- **계산식**: `unread = member_count − read_count − 1` (발신자 본인 제외)
+  - DM: `unread ∈ {0, 1}` — 1이면 미확인, 0이면 읽음.
+  - 그룹방: `1 ≤ unread ≤ N`, 실시간 감소.
+- `unread > 0`: `GtkLabel` 표시 (CSS class: `unread-count`, accent 색상).
+- `unread == 0`: `gtk_widget_hide(unread_label)`.
+- **실시간 갱신**: `DM_READ_NOTIFY` 수신 → 해당 `msg_id` 행의 unread GtkLabel 갱신.
+  - 100ms 디바운스: `g_timeout_add(100, update_read_count_cb, ...)`.
+
+---
+
+## 7. 타이핑 표시 (GtkLabel)
 
 ```
-╭──────────────────────────────────────────────────────────────────────────────────────╮
-│ ←  # 개발 스터디  [오픈]   ● 8/30              ◈ 채널 규칙: 영어/한국어 OK  ⌕  ⋯  │
-╰──────────────────────────────────────────────────────────────────────────────────────╯
+GtkLabel (css: typing-indicator, initially hidden)
+— 예: "홍길동 님이 입력 중..."
+— 복수: "홍길동 외 2명이 입력 중..."
 ```
 
-- 방 이름 뒤에 `[오픈]` 칩 (`fg.secondary`).
-- 멤버 목록에서 닉네임은 오픈채팅 닉네임(`open_nick`)으로 표시.
+- `TYPING_NOTIFY` 패킷 수신 → `gtk_label_set_text()` + `gtk_widget_show()`.
+- `TYPING_STOP` 수신 또는 5초 경과 → `gtk_widget_hide()`.
 
-### 내 오픈채팅 닉네임 표시
+---
 
-내 메시지에 `(나: 개발자A)` 메타 표시 (일반 채팅과 구분):
-```
-                           2   안녕하세요! (나: 개발자A)
-                         14:05
-```
-
-### `/open_nick` 변경 시 시스템 메시지
+## 8. 입력 영역 (GtkBox)
 
 ```
-              ─── 홍길동 님이 닉네임을 "개발자A" 로 변경했습니다 ───
+GtkBox (horizontal, spacing=8, margin=8, css: input-area)
+  GtkEntry (hexpand=TRUE, placeholder_text="메시지 입력...", css: message-entry)
+  GtkButton "전송" (css: suggested-action, icon: mail-send-symbolic)
+```
+
+- `GtkEntry`에서 Enter 키 → `gtk_button_clicked(send_btn)` 트리거.
+- 빈 입력 시 전송 버튼 비활성화 (`gtk_widget_set_sensitive(send_btn, FALSE)`).
+- 연결 끊김 상태: `gtk_widget_set_sensitive(entry, FALSE)` + 입력창 dim 처리.
+
+### 답장 모드
+
+답장 대상 메시지가 있을 때 입력 영역 위에 인용 바 추가:
+
+```
+GtkBox (horizontal, css: reply-preview-bar)
+  GtkLabel (원문 미리보기, css: dim-label)  [hexpand=TRUE]
+  GtkButton "×" (답장 취소, icon: window-close-symbolic)
+GtkEntry ...  (기존 입력창)
 ```
 
 ---
 
-## 12. 키 바인딩
+## 9. 메시지 우클릭 컨텍스트 메뉴 (GtkPopoverMenu)
 
-| 키 | 동작 |
-|----|------|
-| `↑` `↓` | 1줄 스크롤 |
-| `PgUp` `PgDn` | 페이지 스크롤 |
-| `End` | 맨 아래로 |
-| `Ctrl+U` | 과거 히스토리 추가 로드 |
-| `Esc` / `/leave` | MAIN 복귀 |
-| `r` | 마지막 메시지에 답장 시작 (`/reply <id>` 자동 프리필) |
-| `e` | 마지막 내 메시지 수정 (`/edit <id>`) |
-| `+` | 마지막 메시지에 리액션 선택기 팝업 |
-| `m` | 멤버 목록 오버레이 토글 |
+메시지 `GtkListBoxRow`에 우클릭 이벤트 연결:
+
+```
+GtkPopoverMenu
+  "답장"       — reply_to 설정 → 입력 영역에 인용 바 표시
+  "수정"       — 내 메시지만 활성화, 전송 후 5분 이내
+  "삭제"       — 내 메시지만 활성화, GtkAlertDialog 확인 후
+  "귓속말"     — 그룹방만, 대상 발신자에게 귓속말 모드 설정
+  "복사"       — 클립보드에 메시지 내용 복사
+```
 
 ---
 
-## 13. 슬래시 커맨드
+## 10. 검색 오버레이 (GtkSearchBar)
+
+HeaderBar의 검색 버튼 클릭 시 `GtkSearchBar` 슬라이드 인:
 
 ```
-/w /del /edit /reply /react /pin /search /invite /kick /notice /grant /revoke
-/members /mute /leave /me /open_nick
+GtkSearchBar (search-mode-enabled=TRUE)
+  GtkBox (horizontal)
+    GtkSearchEntry (hexpand=TRUE, placeholder="방 내 메시지 검색...")
+    GtkLabel "결과 3개" (css: meta-label)
+    GtkButton "↑" (이전 결과)
+    GtkButton "↓" (다음 결과)
+    GtkButton "×" (검색 닫기)
+
+GtkScrolledWindow (검색 결과 목록, initially hidden)
+  GtkListBox (css: search-result-list)
+    GtkListBoxRow  — SearchResultItem
+      GtkLabel "[14:00] 홍길동"
+      GtkLabel (내용 미리보기, 검색어 강조: gtk_label_set_markup)
 ```
 
-(상세: [`../commands.md`](../commands.md))
+- 검색어 포함 단어: `<b><span color="@accent_primary">검색어</span></b>`로 markup.
+- 결과 항목 클릭 → 해당 메시지 위치로 스크롤 + 해당 행 2초간 CSS class `highlight`.
 
 ---
 
-## 14. DM 모드 차이
+## 11. 멤버 목록 (GtkPopover)
 
-- TopBar 좌측: `#` → `✉` + 상대 닉 + StatusDot
-  ```
-  ╭──────────────────────────────────────────────────────────────────────────────────────╮
-  │ ←  ✉ 김철수   ● online                                                          ⋯  │
-  ╰──────────────────────────────────────────────────────────────────────────────────────╯
-  ```
-- PinNoticeBar 없음.
-- 읽음 숫자는 0 또는 1.
-- `/w /invite /kick /notice /grant /revoke /members /open_nick /pin` 숨김.
-- `⋯` 메뉴: DM 차단 / 친구 삭제 / 알림 무음만 표시.
+HeaderBar 멤버 버튼 클릭 → `GtkPopover` 표시 (우측 GtkPaned 분할도 고려):
+
+```
+GtkPopover (width=260, css: member-popover)
+  GtkBox (vertical)
+    GtkBox (horizontal)
+      GtkLabel "멤버 12명" (title)
+      GtkButton "×" (popover 닫기)
+    GtkSeparator
+    GtkScrolledWindow
+      GtkListBox (css: member-list)
+        [섹션 헤더] GtkLabel "방장"
+        GtkListBoxRow — MemberItem (홍길동, ★, online)
+        [섹션 헤더] GtkLabel "관리자"
+        GtkListBoxRow — MemberItem (김철수, ☆, busy)
+        [섹션 헤더] GtkLabel "멤버 (10)"
+        GtkListBoxRow — MemberItem ...
+```
+
+**MemberItem 우클릭 → GtkPopoverMenu:**
+- `DM 보내기` (항상)
+- `강퇴` (방장/관리자 전용)
+- `관리자 권한 부여/해제` (방장 전용)
+
+---
+
+## 12. 스크롤 · 히스토리
+
+- 메시지 표시 한도: `CHAT_VIEW_CAP=200`.
+- 맨 위까지 스크롤 시 자동으로 이전 메시지 추가 요청 (스크롤 position < 10%).
+  - 로딩 중: GtkListBox 맨 위에 `GtkSpinner` 표시.
+- 스크롤이 맨 아래가 아닐 때: 우하단에 `GtkButton "↓ N개 새 메시지"` 오버레이 표시.
+  - 클릭 시 `gtk_adjustment_set_value(adj, gtk_adjustment_get_upper(adj))`.
+
+---
+
+## 13. 오픈채팅 전용 요소
+
+- HeaderBar 타이틀에 `[오픈]` GtkLabel (CSS class: `open-chat-chip`) 추가.
+- 멤버 목록에서 닉네임은 `open_nick` 사용.
+- 내 메시지 옆에 `(나: 개발자A)` GtkLabel (CSS class: `open-nick-meta`).
+- 닉네임 변경 시 시스템 메시지 자동 표시.

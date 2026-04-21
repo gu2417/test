@@ -10,7 +10,9 @@ ROOM_LEAVE|<room_id>
 ROOM_INFO|<room_id>
 ROOM_MEMBERS|<room_id>
 ROOM_INVITE|<room_id>|<target_id>         # 그룹방(is_open=0) 전용
-ROOM_KICK|<room_id>|<target_id>           # 방장/관리자
+ROOM_INVITE_ACCEPT|<room_id>              # 초대 수락
+ROOM_INVITE_REJECT|<room_id>              # 초대 거절
+ROOM_KICK|<room_id>|<target_id>           # 방장 전용
 ROOM_TRANSFER|<room_id>|<target_id>       # 방장 위임
 ROOM_NOTICE|<room_id>|<content>
 ROOM_PIN|<room_id>|<msg_id>               # msg_id=0 → 핀 해제
@@ -28,8 +30,10 @@ ROOM_JOIN_RES|6   # full
 ROOM_JOIN_RES|7   # banned(차단된 유저) — v2.1
 ROOM_LEAVE_RES|0
 ROOM_INFO_RES|0|<room_id>|<name>|<topic>|<notice>|<owner_id>|<is_open>|<max>|<pinned_msg_id>
-ROOM_MEMBERS_RES|0|<id>:<nick>:<is_admin>:<online>:<open_nick>;...
+ROOM_MEMBERS_RES|0|<id>:<nick>:<online>:<open_nick>;...
 ROOM_INVITE_RES|<code>
+ROOM_INVITE_ACCEPT_RES|<code>             # 0=성공, 5=초대 없음
+ROOM_INVITE_REJECT_RES|<code>             # 0=성공, 5=초대 없음
 ROOM_KICK_RES|<code>
 ROOM_TRANSFER_RES|<code>
 ROOM_NOTICE_RES|<code>

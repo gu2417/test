@@ -20,7 +20,7 @@ C_ChatProgram/
 |------|------|------|
 | `common/` | 패킷 타입 상수, 공용 구조체, 유틸리티(문자열/시간/해시 래퍼), 플랫폼 소켓 호환 | 표준 C, 플랫폼 네트워크 헤더 |
 | `server/` | TCP listen, 멀티스레드 핸들러, 기능 처리, MySQL 접근 | `common/`, pthread, libmysqlclient |
-| `client/` | 콘솔 TUI, send/recv 스레드, 슬래시 커맨드 | `common/`, pthread |
+| `client/` | GTK4 GUI, GtkStack 화면 전환, g_idle_add UI 업데이트, send/recv 스레드 | `common/`, pthread, GTK4 |
 | `sql/` | 초기화 SQL | (없음) |
 | `docs/` | 설계 문서 | (없음) |
 

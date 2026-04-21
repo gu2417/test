@@ -9,9 +9,9 @@
 |----------|--------|
 | **P0** | FR-A01, A02, A03 · FR-G01, G03, G05, G09 · FR-O01, O02, O04 |
 | **P1** | FR-A04~A06 · FR-F01~F07 · FR-D01~D05 · FR-P01~P06 |
-| **P2** | FR-M01, M02, M03, M07, M09 · FR-G06~G08, G10 · FR-C01~C07 · FR-N01, N02 |
+| **P2** | FR-M01, M02, M03, M09 · FR-G06~G08, G10 · FR-C01~C07 · FR-N01, N02 |
 | **P3** | FR-M04, M05, M06, M08, M10, M11 · FR-O03, O05 · FR-N03~N06 |
-| **P4** | FR-ADM01~ADM05 |
+| **Out-of-Scope** | FR-ADM01~ADM05 · FR-M07(리액션) |
 
 ## 문서
 
@@ -26,7 +26,7 @@
 | [notification.md](./notification.md) | FR-N01 ~ N06 |
 | [customization.md](./customization.md) | FR-C01 ~ C07 |
 | [mypage.md](./mypage.md) | FR-P01 ~ P06 |
-| [admin.md](./admin.md) | FR-ADM01 ~ ADM05 |
+| [admin.md](./admin.md) | FR-ADM01 ~ ADM05 *(범위 외)* |
 
 ## 기술 규약 (기능 문서 공통)
 
