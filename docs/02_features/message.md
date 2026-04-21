@@ -25,11 +25,8 @@
 | 저장 | `messages.reply_to = <원본 msg_id>` |
 | preview | 원본 content 20자 + "…" |
 
-## FR-M05 리액션 · P3
-
-| 패킷 | `MSG_REACT` → `MSG_REACT_NOTIFY` 방 전원 |
-| 토글 | `reactions` UNIQUE(msg_id,user_id,emoji). 이미 있으면 DELETE, 없으면 INSERT |
-| 알림 | `count + user_list` (상위 5명 닉네임 + `외 N명`) |
+## FR-M05 리액션 · **Out-of-Scope**
+> 메시지 리액션은 이 프로젝트 구현 범위에 포함되지 않습니다.
 
 ## FR-M06 이모티콘 변환 · P3
 
@@ -66,4 +63,4 @@
 ## 관련 문서
 
 - 패킷: [`08_api/packets/message.md`](../08_api/packets/message.md)
-- 테이블: [`messages.md`](../07_database/tables/messages.md), [`reactions.md`](../07_database/tables/reactions.md)
+- 테이블: [`messages.md`](../07_database/tables/messages.md), [`room_invites.md`](../07_database/tables/room_invites.md)

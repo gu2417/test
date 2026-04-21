@@ -1,6 +1,6 @@
 # 알림 (FR-N01 ~ N06)
 
-모든 알림은 서버가 `NOTIFY|<type>:<content>` 패킷으로 전송하거나, 전용 패킷(`FRIEND_REQUEST_NOTIFY`, `MSG_REACT_NOTIFY`) 으로 전송한다.
+모든 알림은 서버가 `NOTIFY|<type>:<content>` 패킷으로 전송하거나, 전용 패킷(`FRIEND_REQUEST_NOTIFY`) 으로 전송한다.
 클라이언트는 상단 배너 큐로 표시하고, 3초 후 자동 사라지도록 한다(저사양 고려: 타이머 없이 다음 입력/렌더 시점에 만료 체크).
 
 ## FR-N01 메시지 알림 · P2

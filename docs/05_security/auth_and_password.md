@@ -10,7 +10,7 @@
   ```
 - 로그인 시:
   ```sql
-  SELECT id, password_hash, is_admin FROM users WHERE id=?;
+  SELECT id, password_hash FROM users WHERE id=?;
   ```
   서버가 `SHA2(input,256)` 를 MySQL 에 다시 요청하거나, 서버 측 SHA-256 구현으로 해시해 비교.
   → **권장**: 서버 측 직접 해시(불필요한 왕복 제거). libcrypto 혹은 mini 구현.

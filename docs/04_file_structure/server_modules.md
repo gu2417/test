@@ -15,9 +15,8 @@
 | `friend.c/h` | 친구 요청/수락/거절/차단/목록/검색 | `handle_friend_*`, `friend_is_blocked` |
 | `room.c/h` | 방 CRUD, 입·퇴장, 권한, 공지 | `handle_room_create/join/leave/invite/kick`, `handle_room_set_notice`, `handle_room_grant_admin` |
 | `dm.c/h` | DM 송신·히스토리·읽음 | `handle_dm_send`, `handle_dm_history`, `mark_dm_read` |
-| `message.c/h` | 삭제/수정/답장/리액션/검색/핀 | `handle_msg_delete/edit/reply/react/search/pin`, `handle_whisper` |
+| `message.c/h` | 삭제/수정/답장/검색 | `handle_msg_delete/edit/reply/search`, `handle_whisper` |
 | `broadcast.c/h` | 방/전체 fan-out, 알림 | `bcast_room`, `bcast_all`, `notify_user`, `send_packet_locked` |
-| `admin.c/h` | 관리자 명령 | `handle_admin_cmd` |
 
 ## 의존성 방향
 

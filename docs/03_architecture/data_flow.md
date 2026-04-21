@@ -70,4 +70,3 @@ flowchart LR
 | DM 수신 | 수신자 | DND |
 | 친구 요청 | 수신자 | 없음 |
 | 서버 공지 | 전체 | 없음 |
-| 리액션 | 방 멤버 | DND, room mute |

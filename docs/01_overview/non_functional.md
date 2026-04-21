@@ -11,7 +11,7 @@
 | NFR-03 | 안정성 | 크래시 없음 | 모든 소켓 I/O 는 `SIGPIPE` 무시(`signal(SIGPIPE, SIG_IGN)`), recv 0/에러 시 세션만 정리. 스레드 분리(detach). |
 | NFR-04 | 보안 | SHA-256, 평문 전송은 로컬만 | MySQL `SHA2(pass,256)` 저장. 평문 전송은 9장(예외)에서 명시적 리스크로 기록. |
 | NFR-05 | 서버 메모리 | ≤100MB | 세션/방/멤버 배열은 **정적 할당**. 메시지 히스토리는 DB 에 위임, 메모리 캐시 없음. |
-| NFR-06 | 이식성 | Linux + Windows(MinGW) + **macOS** | 플랫폼 분기는 `client/console.h`, 서버 소켓 추상화에 국한. |
+| NFR-06 | 이식성 | Linux + Windows(MSYS2 GTK4) | 플랫폼 분기는 소켓 헤더(`sys/socket.h` vs `winsock2.h`)와 GTK4 pkg-config 링크 플래그에 국한. |
 | NFR-07 | 확장성 | GUI 레이어 교체 가능 | 클라이언트는 `net` 계층과 `ui` 계층을 분리. `net` 은 화면을 몰라야 함. |
 | NFR-08 | 영속성 | 재시작 후 유지 | 세션 외 모든 상태는 MySQL 영속. 인메모리 캐시는 **재구성 가능**한 것만. |
 | NFR-09 | 스레드 안전 | mutex 보호 | 세션 배열은 `g_sessions_mutex` 로 보호. DB 연결은 **스레드 전용**(공유 금지). |
@@ -29,7 +29,6 @@
 ## 3. 관찰 가능성(최소)
 
 - 서버는 stderr 로 레벨 프리픽스 로그(`[INFO]/[WARN]/[ERROR]`) 출력.
-- 관리자 명령 `server_stat` 으로 `접속 수 / 활성 방 수 / 총 메시지 수` 조회 가능(FR-ADM03).
 - 구조화된 로그 파일·메트릭 수집은 out-of-scope.
 
 ## 4. 테스트 전략(개요, 10 장에서 상세)

@@ -8,7 +8,7 @@ sequenceDiagram
     participant S as Server
     participant D as MySQL
     C->>S: LOGIN|alice|hash
-    S->>D: SELECT id, password_hash, is_admin FROM users WHERE id=?
+    S->>D: SELECT id, password_hash FROM users WHERE id=?
     D-->>S: row
     alt already online
         S-->>C: LOGIN_RES|6
@@ -100,12 +100,4 @@ sequenceDiagram
 
 ## 6. 서버 종료 → 관리자 브로드캐스트
 
-```mermaid
-sequenceDiagram
-    participant Adm as Admin
-    participant S as Server
-    participant All as All Clients
-    Adm->>S: ADMIN_BROADCAST|점검 5분 전
-    S-->>Adm: ADMIN_BROADCAST_RES|0
-    S-)All: SYSTEM_NOTIFY|1|점검 5분 전
-```
+> **Out-of-Scope**: 서버 관리자 기능(FR-ADM)은 이 프로젝트 구현 범위에 포함되지 않습니다.

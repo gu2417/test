@@ -15,7 +15,7 @@
 | 용도 | 구분자 | 예 |
 |------|--------|----|
 | 필드 | `\|` | `LOGIN\|alice\|hash` |
-| 다중값 | `:` | 리액션 `+1:3,heart:1` 같은 쌍은 `+1:3;heart:1` 로. 내부 key:value 는 `:` 로 구분 |
+| 다중값 | `:` | `FRIEND_LIST_RES\|0\|alice:앨리스:1;bob:밥:0` 에서 nick:status 쌍은 `:` 로, 반복은 `;` 로 구분 |
 | 리스트 반복 | `;` | `FRIEND_LIST_RES\|0\|alice:앨리스:1;bob:밥:0` |
 
 ## 3. content 필드 규칙

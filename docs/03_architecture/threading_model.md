@@ -40,18 +40,41 @@ flowchart TB
 
 | 스레드 | 역할 |
 |--------|------|
-| Main (UI) | 입력 읽기, 렌더, 화면 전환 |
-| Recv | 소켓 → 이벤트 큐 |
+| Main (GTK4 루프) | `g_application_run()` 실행. UI 업데이트만 처리 — 블로킹 호출 금지 |
+| Recv | 소켓 수신 → `g_idle_add()` 로 UI 업데이트 예약 |
 
-`send()` 는 UI·Recv 양쪽에서 호출될 수 있으므로 `tx_mutex` 로 보호.
+```c
+/* recv 스레드에서 UI 업데이트 예약 예시 */
+static gboolean update_ui_cb(gpointer data) {
+    MessageData *msg = data;
+    append_message_to_list(msg);   /* GTK4 API: 메인 루프에서 실행 */
+    g_free(msg);
+    return G_SOURCE_REMOVE;
+}
+
+/* recv 스레드 내부 */
+g_idle_add(update_ui_cb, msg_data);
+```
+
+**GTK4 스레드 안전성**: GTK4 API는 반드시 메인 스레드(GTK 메인 루프)에서만 호출해야 한다.
+recv 스레드에서 직접 GTK 위젯을 수정하면 정의되지 않은 동작이 발생한다.
+
+`send()` 는 Main·Recv 양쪽에서 호출될 수 있으므로 `tx_mutex` 로 보호:
+
+```c
+pthread_mutex_lock(&tx_mutex);
+net_send_line(sock_fd, packet);
+pthread_mutex_unlock(&tx_mutex);
+```
 
 ## 3. 시그널
 
 | 시그널 | 서버 | 클라이언트 |
 |--------|------|-----------|
 | SIGPIPE | IGN | IGN |
-| SIGINT / SIGTERM | 플래그 set → accept 중단 → 모든 세션 close → exit | 소켓 close → raw-mode off → exit |
-| SIGWINCH | - | 화면 크기 재조회 후 재렌더 |
+| SIGINT / SIGTERM | 플래그 set → accept 중단 → 모든 세션 close → exit | 소켓 close → `g_application_quit()` |
+
+창 크기 변경은 GTK4의 `notify::default-width` / `notify::default-height` 시그널로 처리.
 
 ## 4. DB 연결 원칙 (NFR-09)
 

@@ -17,7 +17,7 @@
 |------|------|
 | 입력 | id, password |
 | 패킷 | `LOGIN_REQ` / `LOGIN_RES` |
-| 로직 | ① `SELECT password_hash, is_admin FROM users WHERE id=?` → ② `hash == SHA2(input,256)` 비교 → ③ 세션 배열에서 동일 id 가 이미 `active` 이면 `ALREADY_ONLINE` 반환 → ④ 세션 등록, `online_status=1`, `last_seen=NOW()` 업데이트 |
+| 로직 | ① `SELECT password_hash FROM users WHERE id=?` → ② `hash == SHA2(input,256)` 비교 → ③ 세션 배열에서 동일 id 가 이미 `active` 이면 `ALREADY_ONLINE` 반환 → ④ 세션 등록, `online_status=1`, `last_seen=NOW()` 업데이트 |
 | 응답 코드 | 0=OK, 1=WRONG_ID, 2=WRONG_PW, 3=ALREADY_ONLINE |
 | 예외 | 세션 배열 full → `SERVER_FULL`(09장 참조) |
 

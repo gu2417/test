@@ -43,11 +43,10 @@ flowchart TB
 | `auth.c/h` | 회원가입, 로그인, 로그아웃, 비밀번호 변경 | `handle_register`, `handle_login`, ... |
 | `user_store.c/h` | 유저/설정 CRUD | `user_find_by_id`, `settings_get`, `settings_update` |
 | `friend.c/h` | 친구 요청/수락/차단/목록/검색 | `handle_friend_*` |
-| `room.c/h` | 방 CRUD, 참여/퇴장/권한/공지/핀 | `handle_room_*` |
+| `room.c/h` | 방 CRUD, 참여/퇴장/권한/공지 | `handle_room_*` |
 | `dm.c/h` | DM 송신·히스토리·읽음 | `handle_dm_*` |
-| `message.c/h` | 메시지 저장·삭제·수정·답장·리액션·검색 | `handle_msg_*` |
+| `message.c/h` | 메시지 저장·삭제·수정·답장·검색 | `handle_msg_*` |
 | `broadcast.c/h` | 방/서버 전체 fan-out, 알림 송신 | `bcast_room()`, `notify_user()` |
-| `admin.c/h` | 관리자 명령 처리 | `handle_admin_cmd()` |
 
 ## 3. 공통 규약
 

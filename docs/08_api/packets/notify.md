@@ -18,8 +18,9 @@ SYSTEM_NOTIFY|0|환영합니다, alice 님!
 
 ## 특수
 
-- 관리자(`is_admin=1`) 가 `ADMIN_BROADCAST` 패킷을 보내면 서버는 모든 세션에게 `SYSTEM_NOTIFY|1|<content>` fan-out.
 - `dnd=1` 유저에게도 level=2 는 표시(중요 공지).
+
+> **Out-of-Scope**: `ADMIN_BROADCAST` 패킷(관리자 전역 공지)은 구현 범위 외입니다.
 
 ## 관련 문서
 

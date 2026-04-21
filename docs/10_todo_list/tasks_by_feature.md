@@ -70,7 +70,6 @@
 | M04 수정 | 5분 내, 본인, 미삭제 UPDATE |
 | M05 삭제 | is_deleted=1 UPDATE |
 | M06 시스템 메시지 | 서버 내부 INSERT(from_id='system', msg_type=1) |
-| M07 리액션 | 존재 확인 → INSERT or DELETE → NOTIFY |
 | M08 검색 | room_id+LIKE |
 | M09 타임스탬프 표시 | 클라이언트 설정 반영 |
 | M10 /me | ME → INSERT(msg_type=3) + NOTIFY |
@@ -110,12 +109,6 @@
 | P05 가입일/최근 접속 | MYPAGE 응답에 포함 |
 | P06 비밀번호 변경 링크 | 설정 화면 이동 |
 
-## 관리자 (FR-ADM)
+## 관리자 (FR-ADM) · Out-of-Scope
 
-| FR | 작업 |
-|----|------|
-| ADM01 서버 상태 | ADMIN_STATUS |
-| ADM02 유저 목록 | ADMIN_USERS |
-| ADM03 강제 로그아웃 | ADMIN_KICK + 대상 세션 close |
-| ADM04 공지 | ADMIN_BROADCAST → 전체 SYSTEM_NOTIFY |
-| ADM05 권한 가드 | `is_admin=1` 검사 |
+> 서버 관리자 기능(FR-ADM01~ADM05)은 이 프로젝트 구현 범위에 포함되지 않습니다.

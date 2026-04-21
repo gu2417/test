@@ -2,7 +2,7 @@
 
 ## 1. Makefile 구조
 
-최상위 `Makefile` 하나로 세 플랫폼을 모두 처리. 플랫폼 감지는 `uname -s` (Windows 는 MSYS/MinGW 쉘 기준).
+최상위 `Makefile` 하나로 두 플랫폼을 처리. 플랫폼 감지는 `uname -s` (Windows 는 MSYS/MinGW 쉘 기준).
 
 ```make
 UNAME := $(shell uname -s 2>/dev/null || echo Windows)
@@ -16,17 +16,11 @@ CLI_SRC  := $(wildcard client/*.c) $(wildcard common/*.c)
 
 ifeq ($(UNAME),Linux)
     LDFLAGS_SRV := -lpthread -lmysqlclient
-    LDFLAGS_CLI := -lpthread
-endif
-ifeq ($(UNAME),Darwin)
-    BREW_PREFIX := $(shell brew --prefix 2>/dev/null)
-    INCLUDES    += -I$(BREW_PREFIX)/opt/mysql-client/include
-    LDFLAGS_SRV := -L$(BREW_PREFIX)/opt/mysql-client/lib -lpthread -lmysqlclient
-    LDFLAGS_CLI := -lpthread
+    LDFLAGS_CLI := -lpthread $(shell pkg-config --cflags --libs gtk4)
 endif
 ifneq (,$(findstring MINGW,$(UNAME))$(findstring Windows,$(UNAME)))
     LDFLAGS_SRV := -lpthread -lmysql -lws2_32
-    LDFLAGS_CLI := -lpthread -lws2_32
+    LDFLAGS_CLI := -lpthread -lws2_32 $(shell pkg-config --cflags --libs gtk4)
     EXE         := .exe
 endif
 
@@ -35,22 +29,21 @@ all: server/chat_server$(EXE) client/chat_client$(EXE)
 
 ## 2. 플랫폼 분기 규칙
 
-분기는 다음 파일들로 **국한**한다:
+분기는 다음 파일로 **국한**한다:
 
 | 위치 | 목적 |
 |------|------|
-| `client/console.h` + `console_posix.c` / `console_win.c` | raw-mode, getch, 콘솔 크기 |
 | `common/net_compat.h` + `net_posix.c` / `net_win.c` | `socket`/`close`/`WSAStartup` 차이 |
 
+GTK4가 플랫폼 간 UI 추상화를 담당하므로 별도 console/TUI 추상화 레이어 불필요.
 기능 코드(auth/room/message 등)에는 `#ifdef` 가 없어야 한다.
 
 ## 3. 외부 라이브러리
 
 | OS | 설치 명령 |
 |----|-----------|
-| Ubuntu/Debian | `apt install build-essential libmysqlclient-dev` |
-| macOS | `brew install mysql-client` |
-| Windows (MSYS2) | `pacman -S mingw-w64-x86_64-gcc mingw-w64-x86_64-mysql-connector-c` |
+| Ubuntu/Debian | `apt install build-essential libmysqlclient-dev libgtk-4-dev` |
+| Windows (MSYS2) | `pacman -S mingw-w64-x86_64-gcc mingw-w64-x86_64-mysql-connector-c mingw-w64-x86_64-gtk4` |
 
 ## 4. 산출물
 

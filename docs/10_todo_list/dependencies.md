@@ -17,25 +17,21 @@ graph TD
     H --> L[dm_reads 읽음]
     F --> M[친구 add/accept]
     M --> N[친구 차단]
-    G --> O[ROOM notice/pin]
+    G --> O[ROOM notice]
     G --> P[ROOM invite/kick/transfer]
     F --> Q[마이페이지]
     F --> R[설정 SETTINGS]
-    I --> S[리액션]
     I --> T[검색]
     I --> U[타이핑]
-    F --> V[관리자]
-    D --> W[TUI 부분재그리기]
+    D --> W[GTK4 UI 업데이트]
     W --> X[테마/색상 적용]
 
     classDef p0 fill:#3b82f6,color:#fff
     classDef p1 fill:#22c55e,color:#fff
     classDef p2 fill:#eab308,color:#000
-    classDef p3 fill:#ef4444,color:#fff
     class A,B,C,D,E,F,G,I,W p0
     class H,J,L,M,O,P,Q,R p1
-    class K,S,T,U,N,X p2
-    class V p3
+    class K,T,U,N,X p2
 ```
 
 ## 크로스컷 의존

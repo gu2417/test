@@ -253,7 +253,7 @@ make
 make server    # server/chat_server
 make client    # client/chat_client
 
-# 디버그 빌드 (AddressSanitizer 포함, Linux/macOS)
+# 디버그 빌드 (AddressSanitizer 포함, Linux)
 make DEBUG=1
 
 # 정리

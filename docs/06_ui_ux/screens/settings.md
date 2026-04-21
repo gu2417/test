@@ -1,98 +1,72 @@
 # 설정
 
-Google Workspace 설정 페이지의 **행 단위 카드 · 세그먼트 컨트롤** 패턴.
-좌측에 라벨 + 설명, 우측에 컨트롤. 섹션은 여백으로만 구분.
+Google Workspace 설정 페이지의 **행 단위 카드** 패턴.
+좌측에 라벨 + 설명, 우측에 GTK4 컨트롤. 섹션은 `GtkSeparator`로 구분.
 
-## 와이어프레임 (100×30)
+## 레이아웃 (GTK4 위젯 트리)
 
 ```
-╭──────────────────────────────────────────────────────────────────────────────────────╮
-│ ←  설정                                                                              │
-╰──────────────────────────────────────────────────────────────────────────────────────╯
-
-
-      외관
-      ────
-
-
-      테마                                 ●──  Dark    ──  Light
-      밝은 배경과 어두운 배경을 선택합니다.
-
-
-      내 메시지 색                         ● ● ● ●  ●  ●  ●
-                                           r g y b  m  c  w
-      채팅 화면에서 내 말풍선의 색.         ▲
-
-
-      닉네임 색                            ● ● ● ●  ●  ●  ●
-                                                ▲
-
-
-      타임스탬프 형식                      ●── HH:MM  ──  HH:MM:SS  ──  MM-DD HH:MM
-      메시지 옆에 표시될 시각 포맷.
-
-
-      알림
-      ────
-
-
-      방해금지 (DND)                                            ──●    OFF
-      켜면 메시지·타이핑 알림 배너가 나오지 않습니다.
-      긴급 공지는 계속 표시됩니다.
-
-
-                                                    [ 저장하지 않음 ]   [ 저장 ]
+GtkScrolledWindow
+└── GtkBox (vertical, spacing=12, margin=24)
+    ├── GtkLabel "외관" (섹션 헤더, font-weight=bold)
+    ├── GtkBox (horizontal): GtkLabel "테마"
+    │   └── GtkDropDown ["다크", "라이트"]  ← GtkStringList
+    ├── GtkBox (horizontal): GtkLabel "메시지 색상"
+    │   └── GtkColorDialogButton
+    ├── GtkBox (horizontal): GtkLabel "닉네임 색상"
+    │   └── GtkColorDialogButton
+    ├── GtkBox (horizontal): GtkLabel "타임스탬프 형식"
+    │   └── GtkDropDown ["HH:MM", "오전/오후 HH:MM", "YYYY-MM-DD HH:MM"]
+    ├── GtkSeparator (horizontal)
+    ├── GtkLabel "알림" (섹션 헤더, font-weight=bold)
+    └── GtkBox (horizontal): GtkLabel "방해금지 모드"
+        └── GtkSwitch
 ```
 
 ## 컨트롤 컴포넌트
 
-### SegmentedControl
-```
-  ●──  Dark  ──  Light
-```
-- 활성 옵션 왼쪽에 `●`, 나머지는 같은 라인에 `──` 로 연결.
-- 좌/우 방향키로 이동, 즉시 미리보기(미저장 표시 `●미저장` 우측 상단).
+### GtkDropDown (테마 / 타임스탬프 형식)
 
-### ColorSwatch 시리즈
-```
-  ● ● ● ●  ●  ●  ●       ← 팔레트 실제 색으로 렌더
-  ▲                      ← 현재 선택 위치 캐럿
-```
-- 좌/우 방향키로 `▲` 이동.
-- 팔레트: red / green / yellow / blue / magenta / cyan / white.
-
-### Toggle
-```
-  ──●    OFF          (꺼짐)
-  ●──    ON           (켜짐, accent.primary)
+```c
+GtkStringList *list = gtk_string_list_new((const char *[]){"다크", "라이트", NULL});
+GtkWidget *dropdown = gtk_drop_down_new(G_LIST_MODEL(list), NULL);
 ```
 
-## 미저장 변경 인디케이터
+선택 변경 시 `notify::selected` 시그널 → 즉시 `SETTINGS_UPDATE` 전송.
 
-변경이 발생하면 상단 TopBar 옆에 얇은 칩:
-```
- ─  설정   ●미저장
-```
-`[저장]` 으로 `SETTINGS_UPDATE` 전송 후 Toast `✓ 저장되었습니다`.
+### GtkColorDialogButton (메시지/닉네임 색상)
 
-## 키 바인딩
+```c
+GtkColorDialog *dialog = gtk_color_dialog_new();
+GtkWidget *btn = gtk_color_dialog_button_new(dialog);
+```
+
+색상 변경 시 `notify::rgba` 시그널 → 즉시 `SETTINGS_UPDATE` 전송.
+
+### GtkSwitch (방해금지 모드)
+
+```c
+GtkWidget *sw = gtk_switch_new();
+g_signal_connect(sw, "notify::active", G_CALLBACK(on_dnd_changed), NULL);
+```
+
+토글 시 즉시 `SETTINGS_UPDATE` 전송.
+
+## 실시간 적용
+
+변경이 발생하면 즉시 `SETTINGS_UPDATE|<msg_color>|<nick_color>|<theme>|<ts_format>|<dnd>` 전송.
+별도 저장 버튼 없음. 응답 OK 시 `g_state.settings` 갱신 + 현재 화면 즉시 재렌더.
+
+## GTK4 가속키
 
 | 키 | 동작 |
 |----|------|
-| `↑` `↓` | 항목 이동 |
-| `←` `→` | 컨트롤 값 변경 |
-| `Space` | Toggle 스위치 |
-| `Enter` | (포커스가 저장 버튼일 때) 저장 |
-| `Esc` | 변경이 있으면 "저장하지 않고 나가기" 확인 모달, 없으면 바로 복귀 |
+| `Ctrl+,` | 설정 화면 열기 |
+| `Escape` | 변경이 있으면 확인 `GtkAlertDialog`, 없으면 바로 MAIN 복귀 |
 
 ## 데이터 소스
 
-- 진입 시 `SETTINGS_GET` → 각 컨트롤 초기값.
-- 저장 시 `SETTINGS_UPDATE|<msg_color>|<nick_color>|<theme>|<ts_format>|<dnd>`.
-- 응답 OK 시 `g_state.settings` 갱신 + 현재 스크린(테마·색) 즉시 재렌더.
-
-## 8색 fallback 표시
-
-터미널이 8색뿐이라면:
-- ColorSwatch 는 같은 7색이지만 밝기 차이가 크지 않으므로, 선택 항목 이름을 옆에 덧붙임: `● yellow`.
-- SegmentedControl 은 `[X]` `[ ]` 스타일로 degrade.
+- 진입 시 `SETTINGS_GET` → 각 컨트롤 초기값 설정.
+- `GtkDropDown`: `gtk_drop_down_set_selected()` 로 초기 선택 반영.
+- `GtkColorDialogButton`: `gtk_color_dialog_button_set_rgba()` 로 초기 색상 반영.
+- `GtkSwitch`: `gtk_switch_set_active()` 로 초기 상태 반영.

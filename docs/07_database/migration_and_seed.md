@@ -25,15 +25,15 @@ FLUSH PRIVILEGES;
 
 -- 3. 테이블 (07_database/tables/*.md 의 DDL)
 -- users, user_settings, friends, rooms, room_members,
--- messages, dm_reads, reactions
+-- messages, dm_reads
 
 -- 4. 시스템 유저 (system 메시지용 예약)
-INSERT IGNORE INTO users (id, password_hash, nickname, is_admin)
-VALUES ('system', SHA2('**disabled**', 256), '시스템', 0);
+INSERT IGNORE INTO users (id, password_hash, nickname)
+VALUES ('system', SHA2('**disabled**', 256), '시스템');
 
 -- 5. 관리자 계정
-INSERT IGNORE INTO users (id, password_hash, nickname, is_admin)
-VALUES ('admin', SHA2('admin', 256), '관리자', 1);
+INSERT IGNORE INTO users (id, password_hash, nickname)
+VALUES ('admin', SHA2('admin', 256), '관리자');
 INSERT IGNORE INTO user_settings (user_id) VALUES ('admin'), ('system');
 ```
 

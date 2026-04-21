@@ -8,7 +8,7 @@ C_ChatProgram/
 ├── sql/
 │   └── schema.sql            # DB 생성·DDL·시드
 ├── docs/                     # 본 설계 문서(10 섹션)
-├── Makefile                  # Linux/macOS/MinGW 통합 빌드
+├── Makefile                  # Linux/MinGW 통합 빌드
 ├── requirements.md           # 요구사항 명세 v2.0.0
 ├── CLAUDE.md                 # AI 어시스턴트 가이드
 └── README.md                 # 프로젝트 소개(추후)

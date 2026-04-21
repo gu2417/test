@@ -6,7 +6,7 @@
 
 ```sql
 -- 로그인
-SELECT id, password_hash, is_admin FROM users WHERE id = ?;
+SELECT id, password_hash FROM users WHERE id = ?;
 
 -- 회원가입
 INSERT INTO users (id, password_hash, nickname, status_msg)
@@ -124,23 +124,6 @@ UPDATE messages SET is_deleted = 1 WHERE id = ? AND from_id = ?;
 SELECT id, from_id, content, created_at FROM messages
 WHERE room_id = ? AND is_deleted = 0 AND content LIKE ? ESCAPE '\\'
 ORDER BY id DESC LIMIT 30;
-```
-
-## 리액션
-
-```sql
--- 존재 확인
-SELECT id FROM reactions WHERE msg_id = ? AND user_id = ? AND emoji = ?;
-
--- 추가
-INSERT INTO reactions (msg_id, user_id, emoji) VALUES (?, ?, ?);
-
--- 제거(토글)
-DELETE FROM reactions WHERE msg_id = ? AND user_id = ? AND emoji = ?;
-
--- 집계
-SELECT emoji, COUNT(*) cnt FROM reactions WHERE msg_id = ?
-GROUP BY emoji ORDER BY cnt DESC;
 ```
 
 ## 마이페이지

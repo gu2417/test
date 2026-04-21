@@ -95,8 +95,6 @@ GtkBox (horizontal, halign=GTK_ALIGN_START, spacing=8, margin-start=8)
       GtkBox (vertical, css: message-meta)
         GtkLabel (미읽음 수, css: unread-count accent) — 0이면 숨김
         GtkLabel (시간, css: timestamp dim-label)
-    GtkBox (horizontal, css: reaction-strip)   — 리액션 있을 때만
-      GtkButton "👍 2" ...
 ```
 
 ### 4-2. 내 메시지 (MessageBubble, 우측 정렬)

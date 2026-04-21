@@ -4,7 +4,7 @@
 
 | 주체 | 판별 |
 |------|------|
-| **서버 관리자** (`is_admin=1`) | `users.is_admin`, 세션에 캐시 |
+| **서버 관리자** (`is_admin=1`) | *(Out-of-Scope)* |
 | **방장** (owner) | `rooms.owner_id == 요청자 id` |
 | **방 관리자** (admin) | `room_members.is_admin=1 AND user_id=요청자 id` |
 | **방 멤버** | `room_members` 에 (room_id, user_id) 존재 |
@@ -42,12 +42,8 @@ int handle_room_set_notice(ClientSession *s, const char *payload) {
 }
 ```
 
-## 4. 관리자 권한 부여
-
-- 최초 `admin` 시드 이후 추가 관리자 지정은 DBA 가 SQL 로 `UPDATE users SET is_admin=1` 수행(v2.0).
-- 런타임 승격 명령은 out-of-scope.
-
-## 5. 권한 오류 응답
+## 4. 권한 오류 응답
 
 - 공통 코드: `RES_FORBIDDEN=10`.
 - 클라이언트 표시: "권한이 없습니다."
+

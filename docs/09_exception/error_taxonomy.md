@@ -12,7 +12,7 @@
 | 상태 | 이미 삭제/만료, 정원 초과 | 서버 business layer |
 | DB | connect fail, deadlock, lost, constraint | 서버 db layer |
 | 시스템 | OOM, thread create 실패 | 서버 main |
-| 렌더 | terminal size 0, write EAGAIN | 클라 UI |
+| 렌더 | GTK4 렌더 실패, 소켓 write 실패 | 클라 UI |
 
 ## 2. 매핑 → error_codes
 

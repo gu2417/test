@@ -7,7 +7,7 @@
 - [ ] 모든 서버 쿼리는 **prepared statement** (grep `mysql_real_query` 로 남은 잔재 0건)
 - [ ] 모든 패킷은 `08_api/packet_format.md` 규칙 통과 (길이/문자 검증)
 - [ ] `NDEBUG` 빌드에서 메모리 100MB 이하 (`ps -o rss`) · CPU idle < 5%
-- [ ] Linux / macOS / Windows(MinGW) 3개 플랫폼에서 서버·클라 빌드 성공
+- [ ] Linux / Windows(MSYS2 GTK4) 2개 플랫폼에서 서버·클라 빌드 성공
 - [ ] `valgrind --leak-check=full` 에서 definitely lost = 0 (Linux)
 
 ## 기능별 AC 발췌
@@ -38,8 +38,8 @@
 - [ ] FR-F02 수락 후 양쪽 `FRIEND_LIST` 에 서로 나타남
 
 ### 관리자
-- [ ] FR-ADM05 일반 유저가 `ADMIN_*` 호출 → `|5`
-- [ ] FR-ADM04 ADMIN_BROADCAST → 모든 세션에 `SYSTEM_NOTIFY|1|...`
+
+> **Out-of-Scope**: FR-ADM01~ADM05(서버 관리자 기능)는 구현 범위 외입니다.
 
 ### 보안
 - [ ] SQL 문자열 concat 0건 (grep `"SELECT"`, `"INSERT"` 주변에 `%s` 로 user input 결합 없음)
@@ -49,7 +49,7 @@
 ### UI/UX
 - [ ] 80×24 터미널에서 채팅 화면이 자르지 않고 배치
 - [ ] 메시지 1개 수신 시 전체 화면 재그리기 없이 메시지 영역만 갱신
-- [ ] `SIGWINCH` 처리로 리사이즈 후 깨짐 없음
+- [ ] GTK4 `notify::default-width` 핸들러에서 최소 창 크기(600×400px) 강제 적용
 
 ### 안정성
 - [ ] 한 클라이언트가 비정상 종료(kill -9) → 다른 세션은 영향 없이 계속
