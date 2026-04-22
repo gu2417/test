@@ -21,6 +21,8 @@ MYSQL *db_connect(void) {
         return NULL;
     }
     mysql_query(c, "SET SESSION wait_timeout=600");
+    mysql_query(c, "SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ"); /* MySQL 기본값이지만 명시적으로 보장 */
+    /* autocommit=1(기본) 유지. 트랜잭션이 필요한 곳에서만 BEGIN/COMMIT 사용 */
     return c;
 }
 ```

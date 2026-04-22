@@ -15,6 +15,12 @@ stateDiagram-v2
     MYPAGE --> SETTINGS: [설정] 버튼
     MYPAGE --> MAIN: Escape
     SETTINGS --> MAIN: Escape
+    CHAT --> USER_PROFILE: 아바타/닉네임 클릭
+    USER_PROFILE --> CHAT: Escape/닫기
+    CHAT --> ROOM_SETTINGS: 더보기→채팅방정보
+    ROOM_SETTINGS --> CHAT: Escape/닫기
+    MAIN --> NOTIFICATIONS: 🔔 버튼 (팝오버)
+    NOTIFICATIONS --> MAIN: Escape/닫기
     LOGIN --> [*]: Escape
     MAIN --> [*]: Ctrl+Q
 ```
@@ -160,6 +166,40 @@ MYPAGE or SETTINGS
        │    │          → HISTORY_REQ 재발송 (CHAT 중이면)
        │    └─ 실패 → GtkButton "재시도" / GtkButton "종료" 표시
        └─ 수동 [재시도] → 카운터 리셋 후 반복
+```
+
+### 2-12. 유저 프로필 팝오버
+
+```
+CHAT / MAIN (친구탭) / 멤버목록
+  └─ 아바타 또는 닉네임 GtkGestureClick (button=PRIMARY)
+       └─ USER_VIEW|<id> 전송
+            ├─ 응답 전: GtkPopover에 GtkSpinner 표시
+            └─ USER_VIEW_RES 수신:
+                 └─ GtkPopover 표시 (프로필 카드)
+                      ├─ [DM 보내기] → 팝오버 닫기 → DM 채팅 진입
+                      ├─ [친구 추가] → FRIEND_ADD 전송 → 버튼 상태 교체
+                      ├─ [차단] → GtkAlertDialog 확인 → FRIEND_BLOCK 전송
+                      └─ Escape / 외부 클릭 → 팝오버 닫기
+```
+
+자기 자신 클릭 → USER_PROFILE 열지 않고 마이페이지 탭으로 이동.
+
+### 2-13. 방 정보 및 설정 패널
+
+```
+CHAT
+  └─ GtkHeaderBar 더보기 GtkMenuButton → "채팅방 정보" GtkPopoverMenu 항목
+       └─ GtkWindow (modal) "채팅방 정보" 표시
+            └─ ROOM_INFO|<room_id> + ROOM_MEMBERS|<room_id> 요청
+                 ├─ 정보 탭: 방 이름, 주제, 인원, 공지 표시 (읽기 전용)
+                 └─ 관리 탭 (방장만 표시):
+                      ├─ 방 정보 수정 → ROOM_NOTICE 등 전송
+                      ├─ 방 삭제 → GtkAlertDialog 확인
+                      │     ├─ [삭제] → ROOM_DELETE 전송
+                      │     │         → ROOM_DELETED_NOTIFY → 모든 멤버 MAIN으로 이동
+                      │     └─ [취소] → 다이얼로그 닫기
+                      └─ Escape → GtkWindow 닫기
 ```
 
 ---

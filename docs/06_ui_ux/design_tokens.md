@@ -328,7 +328,7 @@ GTK4에서는 `GtkOverlay`와 `GtkPopover`의 자연스러운 스태킹 활용.
 프로젝트 CSS 파일 구성:
 
 ```
-client/
+chat_program/src/client/
   css/
     theme-dark.css      — 다크 테마 색상 변수 (@define-color)
     theme-light.css     — 라이트 테마 색상 변수

@@ -34,6 +34,7 @@ CREATE TABLE friends (
 - 거절: `DELETE FROM friends WHERE user_id=? AND friend_id=? AND status=0`
 - 삭제(친구): 양방향 2 `DELETE`.
 - 차단: `INSERT ... ON DUPLICATE KEY UPDATE status=2`.
+- 차단 해제(unblock): `UPDATE friends SET status=1 WHERE user_id=? AND friend_id=? AND status=2` (양방향 레코드가 이미 status=1 이면 그대로. 없으면 INSERT).
 
 ## 인덱스 근거
 

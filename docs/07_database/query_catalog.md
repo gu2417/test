@@ -44,6 +44,11 @@ WHERE f.friend_id = ? AND f.status = 0;
 -- 차단 여부
 SELECT 1 FROM friends WHERE user_id = ? AND friend_id = ? AND status = 2;
 
+-- 차단 해제(unblock)
+UPDATE friends SET status = 1 WHERE user_id = ? AND friend_id = ? AND status = 2;
+INSERT INTO friends (user_id, friend_id, status) VALUES (?, ?, 1)
+  ON DUPLICATE KEY UPDATE status = 1;
+
 -- 검색
 SELECT id, nickname, status_msg FROM users
 WHERE id LIKE ? ESCAPE '\\' OR nickname LIKE ? ESCAPE '\\'
@@ -146,4 +151,50 @@ SELECT (SELECT COUNT(*) FROM users)    AS total_users,
 
 -- 유저 목록
 SELECT id, nickname, online_status FROM users ORDER BY id LIMIT 100;
+```
+
+## 방 운영
+
+```sql
+-- 강퇴(ROOM_KICK): 방 멤버 제거
+DELETE FROM room_members WHERE room_id = ? AND user_id = ?;
+
+-- 공동 방장 부여 (ROOM_GRANT_ADMIN)
+UPDATE room_members SET is_admin = 1 WHERE room_id = ? AND user_id = ?;
+
+-- 공동 방장 박탈 (ROOM_REVOKE_ADMIN): owner_id 는 변경 불가
+UPDATE room_members SET is_admin = 0
+WHERE room_id = ? AND user_id = ?
+  AND user_id <> (SELECT owner_id FROM rooms WHERE id = ?);
+
+-- 방장 승계: 가장 일찍 가입한 관리자를 신규 owner 로
+SELECT user_id FROM room_members
+WHERE room_id = ? AND user_id <> ? AND is_admin = 1
+ORDER BY joined_at ASC LIMIT 1;
+
+UPDATE rooms SET owner_id = ? WHERE id = ?;
+
+-- 방 삭제(관리자 부재 시): messages soft-delete 후 rooms 삭제
+UPDATE messages SET is_deleted = 1 WHERE room_id = ?;
+DELETE FROM rooms WHERE id = ?;
+```
+
+## 알림 설정 (DND)
+
+```sql
+-- DND 토글
+UPDATE user_settings SET dnd = ? WHERE user_id = ?;
+
+-- 현재 DND 상태 조회
+SELECT dnd FROM user_settings WHERE user_id = ?;
+```
+
+## 오픈채팅 닉네임
+
+```sql
+-- 설정 (ROOM_SET_OPEN_NICK)
+UPDATE room_members SET open_nick = ? WHERE room_id = ? AND user_id = ?;
+
+-- 초기화(빈 문자열로 복원)
+UPDATE room_members SET open_nick = '' WHERE room_id = ? AND user_id = ?;
 ```

@@ -8,7 +8,7 @@
 
 ## 2. 권장 래퍼 API
 
-`server/db.h`:
+`chat_program/src/server/db.h`:
 ```c
 typedef struct DbStmt DbStmt;                 /* 내부: MYSQL_STMT */
 

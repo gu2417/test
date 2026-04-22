@@ -43,7 +43,7 @@
 
 ## 4. 이식성 원칙
 
-1. 플랫폼 분기는 **전부 `common/` 또는 `client/platform.h` 에 집중**한다.
+1. 플랫폼 분기는 **전부 `chat_program/src/common/` 또는 `chat_program/src/client/platform.h` 에 집중**한다.
    기능 코드(auth, room, message)에는 `#ifdef _WIN32` 를 쓰지 않는다.
 2. 경로 구분자·파일 I/O 는 추상 헬퍼를 통해서만 접근.
 3. 빌드는 단일 `Makefile` 과 선택적 `Makefile.mingw` 로 관리.

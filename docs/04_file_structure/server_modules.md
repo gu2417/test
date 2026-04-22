@@ -35,5 +35,5 @@ flowchart LR
 ## 각 `.c` 의 include 정책
 
 - 자신의 `.h` 를 첫 번째로 include.
-- `common/protocol.h`, `common/types.h` 는 필요한 곳에서만.
-- 플랫폼 헤더는 직접 include 금지 — `common/net_compat.h` 를 경유.
+- `chat_program/src/common/protocol.h`, `chat_program/src/common/types.h` 는 필요한 곳에서만.
+- 플랫폼 헤더는 직접 include 금지 — `chat_program/src/common/net_compat.h` 를 경유.

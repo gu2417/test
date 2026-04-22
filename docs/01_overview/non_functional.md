@@ -33,7 +33,7 @@
 
 ## 4. 테스트 전략(개요, 10 장에서 상세)
 
-- 단위: `common/utils` · protocol 파서 · password 해시 유틸.
+- 단위: `chat_program/src/common/utils` · protocol 파서 · password 해시 유틸.
 - 통합: 더미 클라이언트로 로그인→방 생성→메시지 왕복 시나리오.
 - 부하: 100 동시 접속 mock(NFR-01, 02 검증).
 - 회귀: P0 패킷 플로우에 대해 시나리오 스크립트 유지.

@@ -22,35 +22,35 @@ make client
 make clean
 ```
 
-Expected binaries: `server/chat_server`, `client/chat_client`
+Expected binaries: `chat_program/src/server/chat_server`, `chat_program/src/client/chat_client`
 
 ## Running
 
 ```bash
 # Start server (default port 8080)
-./server/chat_server [port]
+./chat_program/src/server/chat_server [port]
 
 # Start client
-./client/chat_client [host] [port]
+./chat_program/src/client/chat_client [host] [port]
 ```
 
 ## Architecture
 
-Three-layer layout: `server/`, `client/`, `common/`
+Three-layer layout under `chat_program/src/`: `server/`, `client/`, `common/`
 
-**Common layer** (`common/`) defines the contract for both sides:
+**Common layer** (`chat_program/src/common/`) defines the contract for both sides:
 - `protocol.h` — all packet type constants and delimiters (`|` field sep, `:` multi-value sep, `\n` terminator, max 1024 bytes/packet)
 - `types.h` — shared structs: `User`, `FriendEntry`, `ChatRoom`, `Message`
 - `utils.c/h` — timestamp formatting, string helpers
 
-**Server** is a thread-per-client model:
+**Server** (`chat_program/src/server/`) is a thread-per-client model:
 - `main.c` — accept loop, spawns a handler thread per connection
 - `client_handler.c` — reads packets from socket, calls router
 - `router.c` — dispatches packet type to the appropriate handler (auth, friend, room, dm, message, admin)
 - `broadcast.c` — fan-out to room members and notification delivery
 - All state is in-memory arrays (users[], rooms[], messages[], friends[])
 
-**Client** is a two-thread model (send + receive) with a TUI renderer:
+**Client** (`chat_program/src/client/`) is a two-thread model (send + receive) with a TUI renderer:
 - `net.c` — socket connect, send thread (stdin → socket), receive thread (socket → display)
 - `ui.c` — console TUI layout with tab-style screens
 - `input.c` — slash command parser
@@ -61,7 +61,7 @@ Three-layer layout: `server/`, `client/`, `common/`
 
 All packets follow `<TYPE>|<PAYLOAD>\n`. Multi-value payloads use `:` as separator within a field and `;` between list entries. See `requirements.md` §4 for the full packet definition table.
 
-## Key Data Structures (from `common/types.h`)
+## Key Data Structures (from `chat_program/src/common/types.h`)
 
 - `User` — id[21], pass_hash[65], nickname[21], socket_fd (-1 if offline), dnd flag
 - `ChatRoom` — room_id, owner_id, member_fds[64] (socket fd list of current members)
