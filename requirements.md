@@ -35,7 +35,7 @@ GTK4 GUI 환경에서 동작하는 실시간 채팅 어플리케이션.
 │  ┌─────────────────────▼──────────────────────────────┐ │
 │  │              MySQL  (chat_db)                      │ │
 │  │  users | rooms | room_members | messages           │ │
-│  │  friends | dm_reads | reactions | user_settings    │ │
+│  │  friends | room_invites | dm_reads | user_settings │ │
 │  └────────────────────────────────────────────────────┘ │
 └──────────────────────────────────────────────────────────┘
                ▲  TCP Socket  ▼
@@ -371,24 +371,24 @@ S→C  PONG|
 ```sql
 -- 유저
 CREATE TABLE users (
-    id           VARCHAR(20)  PRIMARY KEY,
-    password_hash VARCHAR(64) NOT NULL,        -- SHA2(pass, 256)
-    nickname     VARCHAR(20)  NOT NULL,
-    status_msg   VARCHAR(100) DEFAULT '',
-    online_status TINYINT     DEFAULT 0,       -- 0=offline, 1=online, 2=busy
-    dnd          TINYINT      DEFAULT 0,
-    is_admin     TINYINT      DEFAULT 0,
-    last_seen    DATETIME     DEFAULT NULL,
-    created_at   DATETIME     DEFAULT CURRENT_TIMESTAMP
+    id            VARCHAR(20)  PRIMARY KEY,
+    password_hash VARCHAR(64)  NOT NULL,        -- SHA2(pass, 256)
+    nickname      VARCHAR(20)  NOT NULL UNIQUE,  -- 닉네임 중복 불허 (귓속말 대상 식별)
+    status_msg    VARCHAR(100) DEFAULT '',
+    online_status TINYINT      DEFAULT 0,        -- 0=offline, 1=online, 2=busy
+    is_admin      TINYINT      DEFAULT 0,
+    last_seen     DATETIME     DEFAULT NULL,
+    created_at    DATETIME     DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 유저 설정 (커스터마이징)
 CREATE TABLE user_settings (
-    user_id      VARCHAR(20)  PRIMARY KEY,
-    msg_color    VARCHAR(15)  DEFAULT 'cyan',
-    nick_color   VARCHAR(15)  DEFAULT 'yellow',
-    theme        VARCHAR(10)  DEFAULT 'dark',
-    ts_format    TINYINT      DEFAULT 0,       -- 0=HH:MM, 1=HH:MM:SS, 2=MM-DD HH:MM
+    user_id    VARCHAR(20) PRIMARY KEY,
+    msg_color  VARCHAR(15) DEFAULT 'cyan',
+    nick_color VARCHAR(15) DEFAULT 'yellow',
+    theme      VARCHAR(10) DEFAULT 'dark',
+    ts_format  TINYINT     DEFAULT 0,           -- 0=HH:MM, 1=HH:MM:SS, 2=MM-DD HH:MM
+    dnd        TINYINT     DEFAULT 0,           -- 1=방해금지 모드
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
@@ -458,17 +458,23 @@ CREATE TABLE dm_reads (
     FOREIGN KEY (reader_id) REFERENCES users(id)    ON DELETE CASCADE
 );
 
--- 메시지 리액션 (Out-of-Scope: FR-M05)
--- CREATE TABLE reactions (
---     id           INT          AUTO_INCREMENT PRIMARY KEY,
---     msg_id       INT          NOT NULL,
---     user_id      VARCHAR(20)  NOT NULL,
---     emoji        VARCHAR(20)  NOT NULL,
---     created_at   DATETIME     DEFAULT CURRENT_TIMESTAMP,
---     UNIQUE KEY uniq_reaction (msg_id, user_id, emoji),
---     FOREIGN KEY (msg_id)   REFERENCES messages(id)  ON DELETE CASCADE,
---     FOREIGN KEY (user_id)  REFERENCES users(id)     ON DELETE CASCADE
--- );
+-- 채팅방 초대 (오프라인 사용자 초대 보관)
+CREATE TABLE room_invites (
+    id         INT          AUTO_INCREMENT PRIMARY KEY,
+    room_id    INT          NOT NULL,
+    inviter_id VARCHAR(20)  NOT NULL,
+    invitee_id VARCHAR(20)  NOT NULL,
+    status     TINYINT      NOT NULL DEFAULT 0,         -- 0=pending, 1=수락, 2=거절
+    created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_invite (room_id, invitee_id),
+    INDEX      idx_invitee (invitee_id),
+    FOREIGN KEY (room_id)    REFERENCES rooms(id)   ON DELETE CASCADE,
+    FOREIGN KEY (inviter_id) REFERENCES users(id)   ON DELETE CASCADE,
+    FOREIGN KEY (invitee_id) REFERENCES users(id)   ON DELETE CASCADE
+);
+
+-- 메시지 리액션 (Out-of-Scope: FR-M05 — v2.1 이후 별도 마이그레이션으로 추가)
+-- CREATE TABLE reactions ( ... );
 ```
 
 ---
@@ -589,42 +595,55 @@ extern pthread_mutex_t g_sessions_mutex;
 
 ```
 C_ChatProgram/
-├── server/
-│   ├── main.c              # 서버 진입점, accept loop
-│   ├── config.h            # DB 접속 정보, 포트, MAX_CLIENTS 상수
-│   ├── globals.h / .c      # g_sessions[], g_sessions_mutex 선언·정의
-│   ├── client_handler.c/h  # 클라이언트별 스레드
-│   ├── router.c / router.h # 패킷 타입별 핸들러 라우팅
-│   ├── db.c / db.h         # MySQL 연결 래퍼, 쿼리 헬퍼
-│   ├── auth.c / auth.h     # 회원가입, 로그인
-│   ├── user_store.c/h      # 유저·설정 CRUD
-│   ├── friend.c / friend.h # 친구 요청/수락/차단
-│   ├── room.c / room.h     # 채팅방 생성/참여/관리
-│   ├── dm.c / dm.h         # 1:1 DM 처리
-│   ├── message.c / .h      # 메시지 저장·삭제·수정·검색·리액션
-│   ├── broadcast.c / .h    # 룸 브로드캐스트, 알림 전송
-│   └── admin.c / admin.h   # 관리자 명령 처리 (Out-of-Scope)
-│
-├── client/
-│   ├── main.c              # 클라이언트 진입점, gtk_init, 화면 라우팅
-│   ├── state.h / state.c   # 전역 클라이언트 상태 (소켓, 현재 창, 설정)
-│   ├── net.c / net.h       # 소켓 연결, recv 스레드, send 함수
-│   ├── app_window.c/h      # GTK4 메인 창, 위젯 레이아웃, 테마 적용
-│   ├── notify.c / notify.h # 알림 GtkRevealer 큐, 표시 처리
-│   ├── screen_login.c/h    # 로그인·회원가입 GTK4 창
-│   ├── screen_main.c/h     # 메인(친구·채팅목록) GtkNotebook 탭
-│   ├── screen_chat.c/h     # 채팅방 GTK4 창
-│   ├── screen_mypage.c/h   # 마이페이지 GTK4 탭
-│   └── screen_settings.c/h # 설정 GtkWindow
-│
-├── common/
-│   ├── protocol.h          # 패킷 타입 상수, 구분자, 응답 코드
-│   ├── types.h             # 공통 구조체 (UserSettings 등 클라이언트용)
-│   └── utils.c / utils.h   # 타임스탬프, 이모티콘 변환, 문자열 유틸
+├── chat_program/
+│   └── src/
+│       ├── server/
+│       │   ├── main.c              # 서버 진입점, accept loop
+│       │   ├── config.h            # DB 접속 정보, 포트, MAX_CLIENTS 상수
+│       │   ├── globals.c / globals.h  # g_sessions[], g_sessions_mutex 선언·정의
+│       │   ├── client_handler.c/h  # 클라이언트별 스레드
+│       │   ├── router.c / router.h # 패킷 타입별 핸들러 라우팅
+│       │   ├── db.c / db.h         # MySQL 연결 래퍼, 쿼리 헬퍼
+│       │   ├── auth.c / auth.h     # 회원가입, 로그인
+│       │   ├── user_store.c/h      # 유저·설정 CRUD
+│       │   ├── friend.c / friend.h # 친구 요청/수락/차단
+│       │   ├── room.c / room.h     # 채팅방 생성/참여/관리
+│       │   ├── dm.c / dm.h         # 1:1 DM 처리
+│       │   ├── message.c / .h      # 메시지 저장·삭제·수정·검색
+│       │   ├── broadcast.c / .h    # 룸 브로드캐스트, 알림 전송
+│       │   └── admin.c / admin.h   # 관리자 명령 처리 (Out-of-Scope)
+│       │
+│       ├── client/
+│       │   ├── main.c              # GTK 앱 진입점, css 로드, app_window 생성
+│       │   ├── state.c / state.h   # 전역 클라이언트 상태 (소켓, 현재 화면, 설정)
+│       │   ├── net.c / net.h       # 소켓 연결, recv 스레드, send 함수
+│       │   ├── packet.c / packet.h # packet_build / packet_parse 직렬화
+│       │   ├── app_window.c/h      # GtkApplicationWindow, GtkStack 화면 전환
+│       │   ├── notify.c / notify.h # 알림 GtkRevealer 큐, 표시 처리
+│       │   ├── screen_login.c/h    # 로그인·회원가입 화면
+│       │   ├── screen_main.c/h     # 메인(친구·채팅 목록) 화면
+│       │   ├── screen_chat.c/h     # 채팅방 화면
+│       │   ├── screen_mypage.c/h   # 마이페이지 화면
+│       │   ├── screen_settings.c/h # 설정 화면
+│       │   └── css/
+│       │       ├── theme-dark.css
+│       │       ├── theme-light.css
+│       │       ├── components.css
+│       │       ├── chat.css
+│       │       └── login.css
+│       │
+│       └── common/
+│           ├── protocol.h          # 패킷 타입 상수, 구분자, 응답 코드
+│           ├── types.h             # 공통 구조체 (UserSettings 등)
+│           ├── utils.c / utils.h   # 타임스탬프, 이모티콘 변환, 문자열 유틸
+│           ├── net_compat.h        # 플랫폼 소켓 호환 인터페이스
+│           ├── net_posix.c         # Linux 소켓 구현
+│           └── net_win.c           # Windows(Winsock2) 소켓 구현
 │
 ├── sql/
-│   └── schema.sql          # DB 생성·테이블 DDL, 관리자 계정 초기 데이터
+│   └── schema.sql              # DB 생성·테이블 DDL, 시드 데이터
 │
+├── docs/                       # 설계 문서 (10개 섹션)
 ├── Makefile
 └── requirements.md
 ```
@@ -633,10 +652,10 @@ C_ChatProgram/
 
 ## 11. 개발 우선순위
 
-| 우선순위 | 기능 그룹 | 핵심 이유 |
-|----------|-----------|-----------|
-| P0 (필수) | MySQL 연동, 소켓 연결, 로그인/회원가입, 그룹·오픈채팅 | 동작하는 MVP |
-| P1 (중요) | DM, 친구 관리, 읽음 확인, 비밀번호 방, 마이페이지 | 핵심 사용자 경험 |
-| P2 (권장) | 커스터마이징(색상·GTK4 테마), 설정 창, 메시지 수정·삭제, 공지·핀 | 완성도 |
-| P3 (선택) | 답장, 타이핑 표시, 방 검색, 오픈채팅 닉네임, DND | 풍부한 경험 |
-| P4 (보너스) | /me 액션, 공동 방장, 마지막 접속 시간 | 완전한 제품 |
+| 우선순위 | FR 범위 | 핵심 이유 |
+|----------|---------|-----------|
+| P0 (필수) | FR-A01~A03 · FR-G01,G03,G05,G09 · FR-O01,O02,O04 | 동작하는 MVP (로그인 + 그룹/오픈채팅) |
+| P1 (중요) | FR-A04~A06 · FR-F01~F07 · FR-D01~D05 · FR-P01~P06 | 핵심 소셜 기능 (친구·DM·마이페이지) |
+| P2 (권장) | FR-M01~M03,M07,M09 · FR-G06~G08,G10 · FR-C01~C07 · FR-N01,N02 | 완성도 향상 (메시지 편집·알림·설정) |
+| P3 (선택) | FR-M04,M06,M08,M10,M11 · FR-O03,O05 · FR-N03~N06 | 풍부한 경험 (답장·검색·타이핑·DND) |
+| Out-of-Scope | FR-M05(리액션) · FR-ADM01~ADM05 | v2.1 이후 별도 구현 |
