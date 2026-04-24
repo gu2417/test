@@ -1,0 +1,39 @@
+{
+  "servers": {
+    "mysql-chat-db": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@benborla29/mcp-server-mysql"
+      ],
+      "env": {
+        "MYSQL_HOST": "127.0.0.1",
+        "MYSQL_PORT": "3306",
+        "MYSQL_USER": "root",
+        "MYSQL_PASS": "${input:MYSQL_PASSWORD}",
+        "MYSQL_DB": "chat_db",
+        "ALLOW_INSERT_OPERATION": "true",
+        "ALLOW_UPDATE_OPERATION": "true",
+        "ALLOW_DELETE_OPERATION": "true",
+        "ALLOW_DDL_OPERATION": "false"
+      }
+    },
+    "sequentialthinking": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ]
+    }
+  },
+  "inputs": [
+    {
+      "id": "MYSQL_PASSWORD",
+      "type": "promptString",
+      "description": "MySQL root 패스워드 (chat_db 접속용). 없으면 빈칸 입력.",
+      "password": true
+    }
+  ]
+}
